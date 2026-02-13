@@ -1,6 +1,6 @@
-# stock-screener
+# edinet-xbrl-parser
 
-日本株全銘柄を対象にEDINETデータを取得し、財務指標計算・スクリーニング・ランキングまで行う投資分析システム
+EDINETから有価証券報告書のXBRLを取得するツール。日本株分析のためのデータ取得基盤として利用できます。
 
 ## Phase1: EDINET XBRL取得システム
 
