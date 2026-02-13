@@ -39,17 +39,18 @@ EDINET_API_KEY=YOUR_API_KEY
 
 3. 設定ファイルの編集（オプション）
 
-`config/settings.json` を編集して、取得期間を設定してください。
+`config/settings.yaml` が無い場合は、`config/settings.yaml.example` を `config/settings.yaml` にコピーしてください。その後、取得期間などを必要に応じて編集してください。
 
-```json
-{
-  "start_date": "2021-01-01",
-  "end_date": "2024-12-31",
-  "sleep_seconds": 0.2
-}
+```yaml
+# 取得期間（空の場合は日本時間の本日で取得）
+start_date: "2021-01-01"
+end_date: "2024-12-31"
+
+# リクエスト間の待機秒数
+sleep_seconds: 0.2
 ```
 
-- **日付の省略**: `start_date` または `end_date` が未設定・空文字の場合は、**両方とも日本時間（JST）の本日**で取得します。日次実行で「本日分だけ」取得したい場合は、空文字 `""` にしておくかキーを省略できます。
+- **日付の省略**: `start_date` または `end_date` が未設定・空文字の場合は、**両方とも日本時間（JST）の本日**で取得します。日次実行で「本日分だけ」取得したい場合は、空文字 `""` にしておくかキーを省略できます。YAMLはコメントが書けるため、仕様のメモも追記しやすくなっています。
 - EDINET APIキーは[EDINET API利用登録](https://disclosure.edinet-fsa.go.jp/guide/guide_api.html)から取得してください。
 - APIキーは `.env` または環境変数 `EDINET_API_KEY` から読み込まれます（優先: 環境変数 > .env）。
 
@@ -80,7 +81,7 @@ python main.py
 
 3. **自動実行（日次）**
    - 毎日午前3時（JST）に自動実行されます
-   - 実行時は `config/settings.json.example` を `config/settings.json` にコピーして使用します。example で `start_date` / `end_date` を空にしておくと、**本日（JST）のみ**取得します。
+   - 実行時は `config/settings.yaml.example` を `config/settings.yaml` にコピーして使用します。example で `start_date` / `end_date` を空にしておくと、**本日（JST）のみ**取得します。
 
 ### ディレクトリ構造
 
@@ -100,8 +101,8 @@ logs/
  └─ edinet_download.log
 
 config/
- ├─ settings.json          # 実設定（Git管理外）
- └─ settings.json.example  # テンプレート（日次実行時にコピー元）
+ ├─ settings.yaml          # 実設定（Git管理外）
+ └─ settings.yaml.example # テンプレート（日次実行時にコピー元）
 
 .env
 .env.example

@@ -23,6 +23,7 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Config (API keys)
+# Config (API keys / local settings)
+config/settings.yaml
 config/settings.json
 .env

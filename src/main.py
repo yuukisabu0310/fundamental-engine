@@ -46,7 +46,7 @@ def main():
         # フォールバック: カレントディレクトリを使用
         project_root = Path.cwd()
     
-    config_path = project_root / "config" / "settings.json"
+    config_path = project_root / "config" / "settings.yaml"
     data_dir = project_root / "data"
     log_dir = project_root / "logs"
     

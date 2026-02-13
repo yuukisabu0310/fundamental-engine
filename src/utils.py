@@ -1,12 +1,12 @@
 """
 共通ユーティリティ関数
 """
-import json
 import logging
 import os
 from pathlib import Path
 from typing import Dict, Any
 from datetime import datetime, timezone, timedelta
+import yaml
 from dotenv import load_dotenv
 
 # 日本標準時（JST = UTC+9）
@@ -58,11 +58,11 @@ def setup_logging(log_dir: Path) -> logging.Logger:
 
 def load_settings(config_path: Path, env_path: Path = None) -> Dict[str, Any]:
     """
-    設定ファイルを読み込む
+    設定ファイル（YAML）を読み込む
     .envファイルからAPIキーを読み込む（環境変数が優先）
     
     Args:
-        config_path: 設定ファイルのパス
+        config_path: 設定ファイルのパス（.yaml）
         env_path: .envファイルのパス（Noneの場合はプロジェクトルートを自動検出）
         
     Returns:
@@ -70,11 +70,10 @@ def load_settings(config_path: Path, env_path: Path = None) -> Dict[str, Any]:
         
     Raises:
         FileNotFoundError: 設定ファイルが存在しない場合
-        json.JSONDecodeError: JSONの解析に失敗した場合
+        yaml.YAMLError: YAMLの解析に失敗した場合
     """
     # .envファイルの読み込み
     if env_path is None:
-        # プロジェクトルートを検出（config/settings.jsonから2階層上）
         project_root = config_path.parent.parent
         env_path = project_root / '.env'
     
@@ -85,7 +84,10 @@ def load_settings(config_path: Path, env_path: Path = None) -> Dict[str, Any]:
         raise FileNotFoundError(f"設定ファイルが見つかりません: {config_path}")
     
     with open(config_path, 'r', encoding='utf-8') as f:
-        settings = json.load(f)
+        settings = yaml.safe_load(f)
+    
+    if settings is None:
+        settings = {}
     
     # 環境変数からAPIキーを取得（.envファイルから読み込まれた値、または既存の環境変数）
     env_api_key = os.getenv('EDINET_API_KEY')

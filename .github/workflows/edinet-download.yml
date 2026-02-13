@@ -37,9 +37,9 @@ jobs:
       - name: Create config directory
         run: mkdir -p config
       
-      - name: Create settings.json from template
+      - name: Create settings.yaml from template
         run: |
-          cp config/settings.json.example config/settings.json
+          cp config/settings.yaml.example config/settings.yaml
       
       - name: Run EDINET downloader
         env:
