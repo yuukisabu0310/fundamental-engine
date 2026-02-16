@@ -5,13 +5,25 @@ main.py に影響を与えない。プロジェクトルートから実行する
 使用例:
     python scripts/test_valuation_engine.py
 """
+import os
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
 
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 sys.path.insert(0, str(project_root / "src"))
 
+# .env ファイルを読み込む（DATASET_PATH用）
+env_path = project_root / ".env"
+if env_path.exists():
+    load_dotenv(env_path)
+
+# .env が存在しない場合、または DATASET_PATH が設定されていない場合はデフォルト値を設定
+if "DATASET_PATH" not in os.environ:
+    os.environ["DATASET_PATH"] = "./financial-dataset"
+
+# 環境変数設定後にインポート
 from parser.xbrl_parser import XBRLParser
 from parser.context_resolver import ContextResolver
 from normalizer.fact_normalizer import FactNormalizer

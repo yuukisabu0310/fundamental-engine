@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "engine_version": "1.0.0",
+  "generated_at": "2026-02-16T14:25:37Z",
+  "latest_annual": "2025FY",
+  "latest_quarterly": null,
+  "annual_periods": [
+    "2025FY"
+  ],
+  "quarterly_periods": [],
+  "record_counts": {
+    "annual": {
+      "2025FY": 1
+    },
+    "quarterly": {}
+  }
+}

@@ -6,12 +6,23 @@ main.py に影響を与えない。プロジェクトルートから実行する
     python scripts/test_json_export.py
 """
 import json
+import os
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
 
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 sys.path.insert(0, str(project_root / "src"))
+
+# .env ファイルを読み込む（DATASET_PATH用）
+env_path = project_root / ".env"
+if env_path.exists():
+    load_dotenv(env_path)
+else:
+    # .env が存在しない場合はデフォルト値を設定
+    if "DATASET_PATH" not in os.environ:
+        os.environ["DATASET_PATH"] = "./financial-dataset"
 
 from output.json_exporter import JSONExporter
 

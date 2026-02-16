@@ -14,9 +14,13 @@ data_version represents fiscal period identity,
 not generation timestamp.
 
 In investment systems, fiscal period is the primary data key.
+
+外部データリポジトリ（financial-dataset）に出力する。
+DATASET_PATH 環境変数で出力先を指定する。
 """
 import json
 import logging
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -57,14 +61,27 @@ VALUATION_KEYS = {
 class JSONExporter:
     """
     ValuationEngine の出力を JSON ファイルとして保存する。
-    出力先: data/processed/YYYY-MM-DD/{security_code}.json
+    出力先: {DATASET_PATH}/{report_type}/{data_version}/{security_code}.json
+
+    DATASET_PATH 環境変数で出力先を指定する。
+    デフォルト: ./financial-dataset
     """
 
-    def __init__(self, base_dir: str = "data/processed") -> None:
+    def __init__(self, base_dir: str | None = None) -> None:
         """
         Args:
             base_dir: 出力ベースディレクトリ（プロジェクトルート基準）。
+                      None の場合は DATASET_PATH 環境変数を使用。
         """
+        if base_dir is None:
+            base_dir_str = os.environ.get("DATASET_PATH")
+            if not base_dir_str:
+                raise EnvironmentError(
+                    "DATASET_PATH 環境変数が設定されていません。"
+                    ".env ファイルまたは環境変数で DATASET_PATH を設定してください。"
+                )
+            base_dir = base_dir_str
+
         self.base_dir = Path(base_dir)
 
     def _generate_data_version(
@@ -174,7 +191,7 @@ class JSONExporter:
             保存された JSON ファイルのパス（文字列）。
 
         Raises:
-            ValueError: security_code が存在しない場合。
+            ValueError: security_code, report_type, data_version が存在しない場合。
         """
         # security_code 取得
         security_code = valuation_dict.get("security_code")
@@ -184,12 +201,6 @@ class JSONExporter:
                 "FinancialMaster で security_code を保持しているか確認してください。"
             )
 
-        # 今日の日付フォルダ作成（UTC）
-        today_utc = datetime.utcnow().date()
-        date_str = today_utc.strftime("%Y-%m-%d")
-        date_dir = self.base_dir / date_str
-        date_dir.mkdir(parents=True, exist_ok=True)
-
         # fiscal_year_end と report_type を取得
         fiscal_year_end = valuation_dict.get("fiscal_year_end")
         report_type = valuation_dict.get("report_type")
@@ -197,12 +208,28 @@ class JSONExporter:
         # data_version を生成
         data_version = self._generate_data_version(fiscal_year_end, report_type)
 
+        # エラーハンドリング: report_type と data_version の存在確認
+        if report_type not in ["annual", "quarterly"]:
+            raise ValueError(
+                f"Invalid report_type: {report_type}. "
+                "report_type must be 'annual' or 'quarterly'."
+            )
+
+        if not data_version:
+            raise ValueError(
+                "data_version が生成できませんでした。"
+                "fiscal_year_end と report_type を確認してください。"
+            )
+
         # ロギング
         if fiscal_year_end:
             logger.info("fiscal_year_end detected: %s", fiscal_year_end)
-        if report_type:
-            logger.info("report_type detected: %s", report_type)
+        logger.info("report_type detected: %s", report_type)
         logger.info("data_version generated: %s", data_version)
+
+        # 出力ディレクトリ作成: financial-dataset/{report_type}/{data_version}/
+        output_dir = self.base_dir / report_type / data_version
+        output_dir.mkdir(parents=True, exist_ok=True)
 
         # JSON 構造構築（数値整形前）
         output_dict: dict[str, Any] = {
@@ -222,8 +249,8 @@ class JSONExporter:
         logger.info("Applying numeric formatting policy")
         output_dict = self._format_numeric_fields(output_dict)
 
-        # JSON ファイル保存
-        output_path = date_dir / f"{security_code}.json"
+        # JSON ファイル保存: financial-dataset/{report_type}/{data_version}/{security_code}.json
+        output_path = output_dir / f"{security_code}.json"
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(output_dict, f, indent=2, ensure_ascii=False)
 
@@ -234,5 +261,17 @@ class JSONExporter:
             output_dict["engine_version"],
             output_dict["data_version"],
         )
+
+        # dataset_manifest.json を生成
+        try:
+            from src.output.manifest_generator import DatasetManifestGenerator
+
+            # DATASET_PATH 環境変数を使用（JSONExporterと同じパス）
+            manifest_generator = DatasetManifestGenerator()
+            manifest_path = manifest_generator.save()
+            logger.info("Dataset manifest generated: %s", manifest_path)
+        except Exception as e:
+            # manifest生成の失敗は警告のみ（メイン処理は継続）
+            logger.warning("Failed to generate dataset manifest: %s", e)
 
         return str(output_path)

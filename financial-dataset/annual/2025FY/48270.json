@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "engine_version": "1.0.0",
+  "data_version": "2025FY",
+  "generated_at": "2026-02-16T14:25:30Z",
+  "doc_id": "S100W67S",
+  "security_code": "48270",
+  "fiscal_year_end": "2025-03-31",
+  "report_type": "annual",
+  "current_year": {
+    "metrics": {
+      "equity": 5805695000.0,
+      "interest_bearing_debt": null,
+      "total_assets": 30554571000.0,
+      "net_sales": 16094118000.0,
+      "operating_income": 1461488000.0,
+      "profit_loss": 828459000.0,
+      "earnings_per_share": 199.68,
+      "free_cash_flow": 981206000.0,
+      "roe": 0.1427,
+      "roa": 0.0271,
+      "operating_margin": 0.0908,
+      "net_margin": 0.0515,
+      "equity_ratio": 0.19,
+      "de_ratio": null,
+      "sales_growth": 0.2002,
+      "profit_growth": 0.1148,
+      "eps_growth": 0.1148
+    },
+    "market": {
+      "stock_price": 2500.0,
+      "shares_outstanding": 5000000,
+      "dividend_per_share": 50.0,
+      "market_cap": 12500000000.0
+    },
+    "valuation": {
+      "per": 12.52,
+      "pbr": 2.15,
+      "psr": 0.78,
+      "peg": 1.09,
+      "dividend_yield": 0.02
+    }
+  },
+  "prior_year": {
+    "metrics": {
+      "equity": 5018725000.0,
+      "interest_bearing_debt": null,
+      "total_assets": 28546264000.0,
+      "net_sales": 13409224000.0,
+      "operating_income": 1331316000.0,
+      "profit_loss": 743129000.0,
+      "earnings_per_share": 179.11,
+      "free_cash_flow": 267089000.0,
+      "roe": 0.1481,
+      "roa": 0.026,
+      "operating_margin": 0.0993,
+      "net_margin": 0.0554,
+      "equity_ratio": 0.1758,
+      "de_ratio": null
+    }
+  }
+}

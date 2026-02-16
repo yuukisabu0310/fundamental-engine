@@ -25,7 +25,7 @@ pip install -r requirements.txt
 
 2. 環境変数の設定
 
-`.env.example` を `.env` にコピーして、EDINET APIキーを設定してください。
+`.env.example` を `.env` にコピーして、EDINET APIキーとDATASET_PATHを設定してください。
 
 ```bash
 cp .env.example .env
@@ -35,9 +35,26 @@ cp .env.example .env
 
 ```env
 EDINET_API_KEY=YOUR_API_KEY
+DATASET_PATH=./financial-dataset
 ```
 
-3. 設定ファイルの編集（オプション）
+3. 外部データリポジトリ（financial-dataset）の設定
+
+financial-dataset を submodule として追加する場合：
+
+```bash
+# financial-dataset リポジトリが存在する場合
+git submodule add git@github.com:<yourname>/financial-dataset.git financial-dataset
+git submodule update --init --recursive
+```
+
+または、ローカルで financial-dataset ディレクトリを作成する場合：
+
+```bash
+mkdir -p financial-dataset/annual financial-dataset/quarterly financial-dataset/metadata
+```
+
+4. 設定ファイルの編集（オプション）
 
 `config/settings.yaml` が無い場合は、`config/settings.yaml.example` を `config/settings.yaml` にコピーしてください。その後、取得期間などを必要に応じて編集してください。
 
@@ -130,7 +147,36 @@ config/
 - ZIPが既に存在すればスキップ
 - 解凍済フォルダがあればスキップ
 
-### 今後の拡張予定（Phase2以降）
+### Phase6: データセット自動生成とプッシュ
+
+mainブランチへのpush時に、financial-datasetリポジトリへ自動的にJSONを生成・プッシュします。
+
+#### セットアップ
+
+1. **GitHub Secrets の設定**
+
+   edinet-xbrl-parser リポジトリの Settings → Secrets and variables → Actions で以下を追加：
+
+   - `DATASET_DEPLOY_KEY`: financial-dataset リポジトリに登録した Deploy Key の秘密鍵
+
+2. **ワークフローの設定**
+
+   `.github/workflows/push_dataset.yml` の `<yourname>` を実際のGitHubユーザー名に置き換えてください。
+
+   ```yaml
+   git clone git@github.com:<yourname>/financial-dataset.git dataset
+   ```
+
+3. **実行**
+
+   mainブランチにpushすると、自動的に以下が実行されます：
+
+   - XBRLファイルのパース
+   - JSON生成（`financial-dataset/annual/YYYYFY/{security_code}.json`）
+   - dataset_manifest.json の更新
+   - financial-dataset リポジトリへの自動commit & push
+
+### 今後の拡張予定
 
 - taxonomy_version検知
 - tag_alias正規化
