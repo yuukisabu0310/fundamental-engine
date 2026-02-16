@@ -37,14 +37,16 @@ if __name__ == "__main__":
     xbrl_base_dir = project_root / "data" / "edinet" / "raw_xbrl"
     
     if not xbrl_base_dir.exists():
-        print(f"ERROR: XBRLディレクトリが存在しません: {xbrl_base_dir}")
-        sys.exit(1)
+        print(f"WARNING: XBRLディレクトリが存在しません: {xbrl_base_dir}")
+        print("XBRLファイルがダウンロードされていないため、処理をスキップします。")
+        sys.exit(0)
 
     # すべてのXBRLファイルを検索（jpcrp030000-asr-*.xbrl）
     xbrl_files = list(xbrl_base_dir.rglob("jpcrp030000-asr-*.xbrl"))
     
     if not xbrl_files:
         print(f"WARNING: XBRLファイルが見つかりません: {xbrl_base_dir}")
+        print("処理するXBRLファイルがないため、処理をスキップします。")
         sys.exit(0)
 
     print(f"Found {len(xbrl_files)} XBRL files")
