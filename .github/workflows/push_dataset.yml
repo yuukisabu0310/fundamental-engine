@@ -33,12 +33,37 @@ jobs:
       # 4️⃣ Download XBRL artifacts from edinet-download workflow
       - name: Download XBRL data artifacts
         if: github.event_name == 'workflow_run'
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: edinet-data
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
-          if-no-artifact-found: warn
+          path: data/
+
+      # 4.5️⃣ Verify downloaded artifacts
+      - name: Verify downloaded artifacts
+        if: github.event_name == 'workflow_run'
+        run: |
+          echo "Checking data directory structure..."
+          if [ -d "data" ]; then
+            echo "data/ directory exists"
+            ls -la data/ || true
+            if [ -d "data/edinet" ]; then
+              echo "data/edinet/ directory exists"
+              ls -la data/edinet/ || true
+              if [ -d "data/edinet/raw_xbrl" ]; then
+                echo "data/edinet/raw_xbrl/ directory exists"
+                find data/edinet/raw_xbrl/ -name "*.xbrl" | head -5 || echo "No XBRL files found"
+              else
+                echo "WARNING: data/edinet/raw_xbrl/ directory does not exist"
+              fi
+            else
+              echo "WARNING: data/edinet/ directory does not exist"
+            fi
+          else
+            echo "WARNING: data/ directory does not exist - artifacts may not have been downloaded"
+          fi
 
       # 5️⃣ SSH設定（Deploy Key）
       - name: Setup SSH
