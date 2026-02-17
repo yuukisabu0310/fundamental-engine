@@ -41,15 +41,26 @@ if __name__ == "__main__":
         print("XBRLファイルがダウンロードされていないため、処理をスキップします。")
         sys.exit(0)
 
-    # すべてのXBRLファイルを検索（jpcrp030000-asr-*.xbrl）
-    xbrl_files = list(xbrl_base_dir.rglob("jpcrp030000-asr-*.xbrl"))
+    # すべてのXBRLファイルを再帰的に検索（サブディレクトリを含む）
+    # rglobは再帰的に検索するが、パターンを**/*.xbrlのように明示的に指定
+    xbrl_files = list(xbrl_base_dir.rglob("*.xbrl"))
+    
+    # デバッグ用: 検索されたファイル数を表示
+    print(f"Searching for XBRL files in: {xbrl_base_dir}")
+    print(f"Found {len(xbrl_files)} XBRL files")
     
     if not xbrl_files:
         print(f"WARNING: XBRLファイルが見つかりません: {xbrl_base_dir}")
         print("処理するXBRLファイルがないため、処理をスキップします。")
+        # デバッグ用: ディレクトリ構造を確認
+        if xbrl_base_dir.exists():
+            print(f"Directory exists. Contents:")
+            try:
+                for item in xbrl_base_dir.iterdir():
+                    print(f"  - {item.name} ({'dir' if item.is_dir() else 'file'})")
+            except Exception as e:
+                print(f"  Error listing directory: {e}")
         sys.exit(0)
-
-    print(f"Found {len(xbrl_files)} XBRL files")
     
     # 各XBRLファイルを処理
     for xbrl_path in xbrl_files:
