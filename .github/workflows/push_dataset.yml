@@ -13,6 +13,9 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
 
     steps:
       # 1️⃣ parser repo checkout
@@ -39,30 +42,42 @@ jobs:
           name: edinet-data
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
-          path: data/
+          path: .
 
       # 4.5️⃣ Verify downloaded artifacts
       - name: Verify downloaded artifacts
         if: github.event_name == 'workflow_run'
         run: |
           echo "Checking data directory structure..."
+          echo "Current directory: $(pwd)"
+          echo "Directory contents:"
+          ls -la || true
           if [ -d "data" ]; then
-            echo "data/ directory exists"
+            echo "✓ data/ directory exists"
+            echo "data/ contents:"
             ls -la data/ || true
             if [ -d "data/edinet" ]; then
-              echo "data/edinet/ directory exists"
+              echo "✓ data/edinet/ directory exists"
+              echo "data/edinet/ contents:"
               ls -la data/edinet/ || true
               if [ -d "data/edinet/raw_xbrl" ]; then
-                echo "data/edinet/raw_xbrl/ directory exists"
-                find data/edinet/raw_xbrl/ -name "*.xbrl" | head -5 || echo "No XBRL files found"
+                echo "✓ data/edinet/raw_xbrl/ directory exists"
+                echo "XBRL files found:"
+                find data/edinet/raw_xbrl/ -name "*.xbrl" | head -10 || echo "No XBRL files found"
+                echo "Total XBRL files: $(find data/edinet/raw_xbrl/ -name '*.xbrl' 2>/dev/null | wc -l)"
               else
-                echo "WARNING: data/edinet/raw_xbrl/ directory does not exist"
+                echo "✗ WARNING: data/edinet/raw_xbrl/ directory does not exist"
+                echo "Checking if data/edinet/raw_xbrl exists as file:"
+                ls -la data/edinet/raw_xbrl 2>&1 || true
               fi
             else
-              echo "WARNING: data/edinet/ directory does not exist"
+              echo "✗ WARNING: data/edinet/ directory does not exist"
+              echo "Checking if data/edinet exists as file:"
+              ls -la data/edinet 2>&1 || true
             fi
           else
-            echo "WARNING: data/ directory does not exist - artifacts may not have been downloaded"
+            echo "✗ WARNING: data/ directory does not exist - artifacts may not have been downloaded"
+            echo "Checking for artifact download errors..."
           fi
 
       # 5️⃣ SSH設定（Deploy Key）
