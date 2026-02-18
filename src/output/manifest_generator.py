@@ -27,6 +27,8 @@ logger = logging.getLogger(__name__)
 # 定数
 SCHEMA_VERSION = "1.0"
 ENGINE_VERSION = __version__
+# manifestに含めない無効な決算期（不正データ防止）
+EXCLUDED_PERIOD_NAMES = frozenset({"UNKNOWN"})
 
 
 class DatasetManifestGenerator:
@@ -88,6 +90,11 @@ class DatasetManifestGenerator:
                 continue
 
             period_name = period_dir.name
+
+            # 無効な決算期（UNKNOWN等）はスキップ
+            if period_name in EXCLUDED_PERIOD_NAMES:
+                logger.debug("Skipping excluded period: %s", period_name)
+                continue
 
             # .json ファイルのみカウント
             json_files = list(period_dir.glob("*.json"))

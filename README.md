@@ -172,9 +172,19 @@ mainブランチへのpush時に、financial-datasetリポジトリへ自動的�
    mainブランチにpushすると、自動的に以下が実行されます：
 
    - XBRLファイルのパース
+   - 書類種別のフィルタリング（有価証券報告書・四半期報告書のみ処理）
    - JSON生成（`financial-dataset/annual/YYYYFY/{security_code}.json`）
    - dataset_manifest.json の更新
    - financial-dataset リポジトリへの自動commit & push
+
+### パイプラインのスキップ条件（process_all.py）
+
+以下の書類は処理対象外としてスキップされます：
+
+1. **ファイル名による早期スキップ**: ファイル名に `jplvh` 等のスキップパターンが含まれる場合（大量保有報告書など、財務データを含まない書類）
+2. **必須項目検証**: `security_code` または `fiscal_year_end` が取得できない場合
+
+これにより、有価証券報告書・四半期報告書以外のXBRL（例：大量保有報告書）がデータレイクに混入することを防止します。
 
 ### 今後の拡張予定
 

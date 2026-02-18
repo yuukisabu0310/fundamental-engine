@@ -31,6 +31,7 @@ from financial.financial_master import FinancialMaster
 from market.market_integrator import MarketIntegrator
 from valuation.valuation_engine import ValuationEngine
 from output.json_exporter import JSONExporter
+from constants import SKIP_FILENAME_PATTERNS
 
 if __name__ == "__main__":
     # データディレクトリからXBRLファイルを検索
@@ -65,14 +66,31 @@ if __name__ == "__main__":
     # 各XBRLファイルを処理
     for xbrl_path in xbrl_files:
         try:
+            # 処理対象外の書類（大量保有報告書等）を早期スキップ
+            name_lower = xbrl_path.name.lower()
+            if any(pattern in name_lower for pattern in SKIP_FILENAME_PATTERNS):
+                print(f"\nSKIP: {xbrl_path.name} - 処理対象外の書類（ファイル名にスキップパターンが含まれます）")
+                continue
+
             print(f"\nProcessing: {xbrl_path.name}")
-            
+
             parser = XBRLParser(xbrl_path)
             parsed_data = parser.parse()
             resolver = ContextResolver(parser.root)
             context_map = resolver.build_context_map()
             normalizer = FactNormalizer(parsed_data, context_map)
             normalized_data = normalizer.normalize()
+
+            # 必須項目検証：有価証券報告書・四半期報告書以外はスキップ
+            security_code = normalized_data.get("security_code")
+            fiscal_year_end = normalized_data.get("fiscal_year_end")
+            if security_code is None or fiscal_year_end is None:
+                print(
+                    f"  SKIP: 有価証券報告書・四半期報告書ではないか、必須項目が欠損 "
+                    f"(security_code={security_code}, fiscal_year_end={fiscal_year_end})"
+                )
+                continue
+
             master = FinancialMaster(normalized_data)
             financial_data = master.compute()
 
@@ -88,7 +106,6 @@ if __name__ == "__main__":
                     # 現在はマーケットデータが空のため、この処理は実行されない
 
             # マーケットデータは暫定的に空（実際の運用では外部APIから取得）
-            # security_code が見つからない場合でも、None として処理を継続
             market_data = {
                 "stock_price": None,
                 "shares_outstanding": None,
@@ -102,22 +119,18 @@ if __name__ == "__main__":
             result = engine.evaluate()
 
             # JSON エクスポート
-            # security_code が None でも処理を継続（JSONExporter でフォールバック処理あり）
             exporter = JSONExporter()
             json_path = exporter.export(result)
             print(f"  -> Saved: {json_path}")
             
         except ValueError as e:
-            # security_code 関連のエラーは WARNING として処理を継続
-            error_msg = str(e)
-            if "security_code" in error_msg.lower():
-                print(f"WARNING: {xbrl_path.name} - {error_msg}")
-                print("  security_code が見つかりませんが、処理を継続します。")
+            # バリデーションエラー（security_code/fiscal_year_end/data_version）はスキップして継続
+            error_msg = str(e).lower()
+            if any(kw in error_msg for kw in ("security_code", "fiscal_year_end", "data_version", "unknown")):
+                print(f"  SKIP: {xbrl_path.name} - {e}")
                 continue
-            else:
-                # その他の ValueError は通常のエラーとして処理
-                print(f"ERROR: Failed to process {xbrl_path.name}: {e}")
-                continue
+            print(f"ERROR: Failed to process {xbrl_path.name}: {e}")
+            continue
         except Exception as e:
             print(f"ERROR: Failed to process {xbrl_path.name}: {e}")
             import traceback

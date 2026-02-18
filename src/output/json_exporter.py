@@ -193,28 +193,13 @@ class JSONExporter:
         Raises:
             ValueError: security_code, report_type, data_version が存在しない場合。
         """
-        # security_code 取得（5桁→4桁のフォールバック処理）
+        # security_code 必須チェック（doc_idフォールバックは廃止：不正データ混入防止）
         security_code = valuation_dict.get("security_code")
-        if not security_code:
-            # security_code が None の場合、doc_id から抽出を試みる
-            doc_id = valuation_dict.get("doc_id", "")
-            if doc_id:
-                logger.warning(
-                    "security_code が valuation_dict に存在しません。doc_id=%s から抽出を試みます。",
-                    doc_id
-                )
-                # doc_id をそのまま security_code として使用（暫定対応）
-                security_code = doc_id
-            else:
-                logger.warning(
-                    "security_code と doc_id が valuation_dict に存在しません。"
-                    "デフォルト値 'UNKNOWN' を使用して処理を継続します。"
-                )
-                security_code = "UNKNOWN"
-        
-        # security_code が5桁の数値の場合、4桁にフォールバックする処理は
-        # マーケットデータ取得時に実装する（現在はマーケットデータが空のため不要）
-        # 将来的にマーケットデータAPIを統合する際に、ここで5桁→4桁のフォールバックを実装
+        if not security_code or not str(security_code).strip():
+            raise ValueError(
+                "security_code が取得できません。"
+                "有価証券報告書・四半期報告書以外の書類の可能性があります。"
+            )
 
         # fiscal_year_end と report_type を取得
         fiscal_year_end = valuation_dict.get("fiscal_year_end")
@@ -230,10 +215,10 @@ class JSONExporter:
                 "report_type must be 'annual' or 'quarterly'."
             )
 
-        if not data_version:
+        if not data_version or data_version == "UNKNOWN":
             raise ValueError(
-                "data_version が生成できませんでした。"
-                "fiscal_year_end と report_type を確認してください。"
+                "data_version が生成できませんでした（fiscal_year_end が欠損している可能性があります）。"
+                "有価証券報告書・四半期報告書以外の書類は処理対象外です。"
             )
 
         # ロギング
