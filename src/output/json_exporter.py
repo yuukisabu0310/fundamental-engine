@@ -32,12 +32,13 @@ DERIVED_KEYS = frozenset({
     "equity_ratio", "de_ratio",
     "sales_growth", "profit_growth", "eps_growth",
     "per", "pbr", "psr", "peg", "dividend_yield",
+    "free_cash_flow",
 })
 
 FACT_KEYS = frozenset({
     "equity", "total_assets", "interest_bearing_debt",
     "net_sales", "operating_income", "profit_loss",
-    "earnings_per_share", "free_cash_flow",
+    "earnings_per_share",
 })
 
 MARKET_SECTION_KEYS = frozenset({"market", "valuation"})

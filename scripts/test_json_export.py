@@ -43,7 +43,6 @@ if __name__ == "__main__":
                 "operating_income": 1461488000.0,
                 "profit_loss": 828459000.0,
                 "earnings_per_share": 199.68,
-                "free_cash_flow": 981206000.0,
             },
         },
         "prior_year": {
@@ -54,7 +53,6 @@ if __name__ == "__main__":
                 "operating_income": 1331316000.0,
                 "profit_loss": 743129000.0,
                 "earnings_per_share": 179.11,
-                "free_cash_flow": 267089000.0,
             },
         },
     }

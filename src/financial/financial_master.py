@@ -22,21 +22,11 @@ def _resolve_equity(bs: dict[str, Any]) -> float | None:
 
 
 def _resolve_interest_bearing_debt(bs: dict[str, Any]) -> float | None:
-    """InterestBearingDebt。タグ値があればそれ、なければ内訳合算。全部NoneならNone。"""
+    """InterestBearingDebt。XBRLタグが存在する場合のみ返す（内訳合算は行わない）。"""
     v = bs.get("interest_bearing_debt")
     if v is not None and isinstance(v, (int, float)):
         return float(v)
-    parts_keys = [
-        "short_term_borrowings",
-        "long_term_borrowings",
-        "bonds_payable",
-        "current_portion_of_long_term_borrowings",
-    ]
-    parts = [bs.get(k) for k in parts_keys]
-    if all(p is None for p in parts):
-        return None
-    total = sum(float(p) for p in parts if p is not None and isinstance(p, (int, float)))
-    return total
+    return None
 
 
 def _safe_float(value: Any) -> float | None:
@@ -58,24 +48,14 @@ def _extract_facts(
     単年分のPL/BS/CFから財務Factのみを抽出する。
     値がNoneの項目は出力しない（null出力禁止）。
     """
-    equity = _resolve_equity(bs)
-    interest_bearing_debt = _resolve_interest_bearing_debt(bs)
-
-    operating_cf = _safe_float(cf.get("net_cash_provided_by_operating_activities"))
-    investing_cf = _safe_float(cf.get("net_cash_used_in_investing_activities"))
-    fcf: float | None = None
-    if operating_cf is not None and investing_cf is not None:
-        fcf = operating_cf + investing_cf
-
     candidates: dict[str, float | None] = {
-        "equity": equity,
-        "interest_bearing_debt": interest_bearing_debt,
+        "equity": _resolve_equity(bs),
+        "interest_bearing_debt": _resolve_interest_bearing_debt(bs),
         "total_assets": _safe_float(bs.get("total_assets")),
         "net_sales": _safe_float(pl.get("net_sales")),
         "operating_income": _safe_float(pl.get("operating_income")),
         "profit_loss": _safe_float(pl.get("profit_loss")),
         "earnings_per_share": _safe_float(pl.get("earnings_per_share")),
-        "free_cash_flow": fcf,
     }
 
     return {k: v for k, v in candidates.items() if v is not None}

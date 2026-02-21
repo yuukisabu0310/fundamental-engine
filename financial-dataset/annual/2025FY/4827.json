@@ -2,7 +2,7 @@
   "schema_version": "2.0",
   "engine_version": "1.0.0",
   "data_version": "2025FY",
-  "generated_at": "2026-02-21T05:52:26Z",
+  "generated_at": "2026-02-18T07:40:53Z",
   "doc_id": "S100W67S",
   "security_code": "4827",
   "fiscal_year_end": "2025-03-31",
@@ -14,8 +14,7 @@
       "net_sales": 16094118000.0,
       "operating_income": 1461488000.0,
       "profit_loss": 828459000.0,
-      "earnings_per_share": 199.68,
-      "free_cash_flow": 981206000.0
+      "earnings_per_share": 199.68
     }
   },
   "prior_year": {
@@ -25,8 +24,7 @@
       "net_sales": 13409224000.0,
       "operating_income": 1331316000.0,
       "profit_loss": 743129000.0,
-      "earnings_per_share": 179.11,
-      "free_cash_flow": 267089000.0
+      "earnings_per_share": 179.11
     }
   }
 }

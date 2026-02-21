@@ -211,8 +211,7 @@ financial-dataset には**財務Factのみ**を保存する。Derived指標・nu
       "net_sales": 16094118000.0,
       "operating_income": 1461488000.0,
       "profit_loss": 828459000.0,
-      "earnings_per_share": 199.68,
-      "free_cash_flow": 981206000.0
+      "earnings_per_share": 199.68
     }
   },
   "prior_year": {
@@ -222,8 +221,7 @@ financial-dataset には**財務Factのみ**を保存する。Derived指標・nu
       "net_sales": 13409224000.0,
       "operating_income": 1331316000.0,
       "profit_loss": 743129000.0,
-      "earnings_per_share": 179.11,
-      "free_cash_flow": 267089000.0
+      "earnings_per_share": 179.11
     }
   }
 }
@@ -240,19 +238,19 @@ financial-dataset には**財務Factのみ**を保存する。Derived指標・nu
 
 | キー | 出典 | 説明 |
 |---|---|---|
-| `equity` | BS | 自己資本 |
+| `equity` | BS | 自己資本（shareholders_equity > equity > net_assets の優先順位で選択） |
 | `total_assets` | BS | 総資産 |
-| `interest_bearing_debt` | BS | 有利子負債 |
+| `interest_bearing_debt` | BS | 有利子負債（XBRLタグ存在時のみ、内訳合算は行わない） |
 | `net_sales` | PL | 売上高 |
 | `operating_income` | PL | 営業利益 |
 | `profit_loss` | PL | 当期純利益 |
 | `earnings_per_share` | PL | 1株当たり利益 |
-| `free_cash_flow` | CF | フリーキャッシュフロー |
 
 ### 含めないデータ（レイヤー分離原則）
 
 | データ | 分類 | 所属レイヤー |
 |---|---|---|
+| free_cash_flow (営業CF + 投資CF) | Derived（CF合算計算値） | valuation-engine |
 | ROE / ROA / マージン / 成長率 | Derived（再計算可能） | valuation-engine |
 | stock_price / volume / shares_outstanding | 市場Fact | market-dataset |
 | PER / PBR / PSR / PEG / dividend_yield | Derived（再計算可能） | valuation-engine |
