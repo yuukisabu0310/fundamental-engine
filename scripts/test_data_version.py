@@ -124,8 +124,7 @@ if __name__ == "__main__":
                 "net_sales": 16094118000.0,
                 "operating_income": 1461488000.0,
                 "net_income_attributable_to_parent": 828459000.0,
-                "earnings_per_share_basic": 199.68,
-                "shares_outstanding": 4148000,
+                "total_number_of_issued_shares": 4148000,
             },
         },
         "prior_year": {
@@ -136,8 +135,7 @@ if __name__ == "__main__":
                 "net_sales": 13409224000.0,
                 "operating_income": 1331316000.0,
                 "net_income_attributable_to_parent": 743129000.0,
-                "earnings_per_share_basic": 179.11,
-                "shares_outstanding": 4148000,
+                "total_number_of_issued_shares": 4148000,
             },
         },
     }

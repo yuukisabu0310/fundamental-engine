@@ -3,10 +3,11 @@ FinancialMaster
 Normalizer出力からBS/PL/CFの生Factを統合し、financial-dataset用の構造を生成する。
 
 出力するのは財務諸表に記載された不可逆なFactのみ。
-Derived指標（ROE, ROA, マージン, 成長率等）はvaluation-engineの責務であり、
+Derived指標（ROE, ROA, マージン, 成長率, EPS等）はvaluation-engineの責務であり、
 このモジュールでは一切算出しない。
 
-会計定義の明示・EPS分離・period保持・発行済株式数必須化。
+会計定義の明示・period保持。EPSは再計算可能なためFactレイクに含めない。
+valuation-engineで net_income / total_number_of_issued_shares から算出する。
 """
 import logging
 from typing import Any
@@ -67,9 +68,7 @@ def _extract_facts(
         "net_sales": _safe_float(pl.get("net_sales")),
         "operating_income": _safe_float(pl.get("operating_income")),
         "net_income_attributable_to_parent": _safe_float(pl.get("profit_loss")),
-        "earnings_per_share_basic": _safe_float(pl.get("earnings_per_share")),
-        "earnings_per_share_diluted": _safe_float(pl.get("diluted_earnings_per_share")),
-        "shares_outstanding": _safe_int(bs.get("shares_outstanding")),
+        "total_number_of_issued_shares": _safe_int(bs.get("total_number_of_issued_shares")),
     }
 
 

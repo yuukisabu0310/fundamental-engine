@@ -17,16 +17,6 @@ PL_TAGS = [
     ("ProfitLoss", "profit_loss"),
 ]
 
-# PL EPS（duration）: 複数タグで取得、数値はfloat、unitRefは制限しない
-PL_EPS_TAGS = [
-    ("BasicEarningsLossPerShareSummaryOfBusinessResults", "earnings_per_share"),
-    ("BasicEarningsPerShareSummaryOfBusinessResults", "earnings_per_share"),
-    ("BasicEarningsPerShare", "earnings_per_share"),
-    ("EarningsPerShare", "earnings_per_share"),
-    ("DilutedEarningsPerShareSummaryOfBusinessResults", "diluted_earnings_per_share"),
-    ("DilutedEarningsPerShare", "diluted_earnings_per_share"),
-]
-
 # BS（instant）: タグ部分一致 -> 出力キー（補完・再構成は行わない）
 BS_TAGS = [
     ("TotalAssets", "total_assets"),
@@ -37,9 +27,9 @@ BS_TAGS = [
     ("CurrentLiabilities", "current_liabilities"),
     ("NoncurrentLiabilities", "noncurrent_liabilities"),
     ("InterestBearingDebt", "interest_bearing_debt"),
-    ("TotalNumberOfIssuedSharesSummaryOfBusinessResults", "shares_outstanding"),
-    ("IssuedSharesTotalNumberOfSharesEtc", "shares_outstanding"),
-    ("NumberOfIssuedSharesAsOfFilingDateTotalNumberOfSharesEtc", "shares_outstanding"),
+    ("TotalNumberOfIssuedSharesSummaryOfBusinessResults", "total_number_of_issued_shares"),
+    ("IssuedSharesTotalNumberOfSharesEtc", "total_number_of_issued_shares"),
+    ("NumberOfIssuedSharesAsOfFilingDateTotalNumberOfSharesEtc", "total_number_of_issued_shares"),
 ]
 
 # CF（duration）: タグ部分一致 -> 出力キー（EDINETは NetCashProvidedByUsedIn*SummaryOfBusinessResults 等）
@@ -97,52 +87,20 @@ def _is_consolidated_context(context_ref: str) -> bool:
     return "NonConsolidated" not in context_ref
 
 
-def _decimals_scale(decimals: str) -> int:
+def _parse_numeric_value(value: str) -> int | None:
     """
-    XBRL decimals属性から円単位へのスケール係数（10のべき乗）を返す。
+    文字列を数値に変換する。単位変換は行わない。
 
-    decimals="0"  → 円単位そのまま → 10**0 = 1
-    decimals="-3" → 千円単位 → 10**3 = 1000
-    decimals="-6" → 百万円単位 → 10**6 = 1000000
-    decimals="INF" or 空 → スケーリング不要 → 1
+    XBRLのdecimals属性は精度を示すもので単位変換には使わない（XBRL仕様）。
+    単位はunitRefが指すunit定義で決まる。EDINETの主要財務指標は円単位で統一されているため、
+    値をそのまま使用する。
     """
-    if not decimals or decimals.upper() == "INF":
-        return 1
-    try:
-        d = int(decimals)
-    except (ValueError, TypeError):
-        return 1
-    if d < 0:
-        return 10 ** abs(d)
-    return 1
-
-
-def _parse_numeric_value(value: str, decimals: str = "") -> int | None:
-    """文字列を数値に変換し、decimals属性に基づいて円単位に正規化する。"""
     if value is None or (isinstance(value, str) and not value.strip()):
         return None
     try:
-        raw = int(value.strip())
+        return int(value.strip())
     except (ValueError, TypeError):
         return None
-    scale = _decimals_scale(decimals)
-    if scale != 1:
-        logger.debug("decimals=%s → scale=%d applied to value=%d", decimals, scale, raw)
-    return raw * scale
-
-
-def _parse_float_value(value: str, decimals: str = "") -> float | None:
-    """文字列をfloatに変換し、decimals属性に基づいて円単位に正規化する。EPS用。"""
-    if value is None or (isinstance(value, str) and not value.strip()):
-        return None
-    try:
-        raw = float(value.strip())
-    except (ValueError, TypeError):
-        return None
-    scale = _decimals_scale(decimals)
-    if scale != 1:
-        logger.debug("decimals=%s → scale=%d applied to float value=%.4f", decimals, scale, raw)
-    return raw * scale
 
 
 def _parse_consolidated_dei(value: str) -> bool:
@@ -224,53 +182,18 @@ class FactNormalizer:
             # 連結優先
             chosen = consolidated_candidates[0] if consolidated_candidates else (non_consolidated_candidates[0] if non_consolidated_candidates else None)
             if chosen is not None:
-                out[key] = _parse_numeric_value(chosen.get("value"), chosen.get("decimals", ""))
+                out[key] = _parse_numeric_value(chosen.get("value"))
             else:
                 out[key] = None
-        return out
-
-    def _pick_duration_facts_eps(
-        self,
-        facts: list[dict[str, str]],
-        is_current: bool,
-    ) -> dict[str, float | None]:
-        """duration系のfactからEPSのみ取得。値はfloat。unitRefは制限しない。"""
-        out: dict[str, float | None] = {"earnings_per_share": None, "diluted_earnings_per_share": None}
-        for keyword, key in PL_EPS_TAGS:
-            if out.get(key) is not None:
-                continue
-            consolidated_candidates: list[dict[str, str]] = []
-            non_consolidated_candidates: list[dict[str, str]] = []
-            for f in facts:
-                if not _tag_matches(f.get("tag", ""), keyword):
-                    continue
-                info = self._fact_context_info(f.get("contextRef", ""))
-                if info["type"] != "duration":
-                    continue
-                if is_current and not info["is_current_year"]:
-                    continue
-                if not is_current and not info["is_prior_year"]:
-                    continue
-                if _is_consolidated_context(f.get("contextRef", "")):
-                    consolidated_candidates.append(f)
-                else:
-                    non_consolidated_candidates.append(f)
-            chosen = consolidated_candidates[0] if consolidated_candidates else (non_consolidated_candidates[0] if non_consolidated_candidates else None)
-            if chosen is not None:
-                out[key] = _parse_float_value(chosen.get("value"), chosen.get("decimals", ""))
         return out
 
     def _extract_pl(
         self,
         facts: list[dict[str, str]],
         is_current: bool,
-    ) -> dict[str, int | float | None]:
-        """PL抽出。通常項目はint、EPSはfloat。"""
-        pl_int = self._pick_duration_facts(facts, PL_TAGS, is_current=is_current)
-        pl_eps = self._pick_duration_facts_eps(facts, is_current=is_current)
-        pl_int["earnings_per_share"] = pl_eps.get("earnings_per_share")
-        pl_int["diluted_earnings_per_share"] = pl_eps.get("diluted_earnings_per_share")
-        return pl_int
+    ) -> dict[str, int | None]:
+        """PL抽出。EPSは再計算可能なため抽出しない（valuation-engineで算出）。"""
+        return self._pick_duration_facts(facts, PL_TAGS, is_current=is_current)
 
     def _extract_bs(
         self,
@@ -310,7 +233,7 @@ class FactNormalizer:
                     non_consolidated_candidates.append(f)
             chosen = consolidated_candidates[0] if consolidated_candidates else (non_consolidated_candidates[0] if non_consolidated_candidates else None)
             if chosen is not None:
-                out[key] = _parse_numeric_value(chosen.get("value"), chosen.get("decimals", ""))
+                out[key] = _parse_numeric_value(chosen.get("value"))
             else:
                 out[key] = None
         return out

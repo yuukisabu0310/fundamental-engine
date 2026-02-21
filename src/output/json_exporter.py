@@ -8,10 +8,10 @@ Derived指標は含めない。値が取得できなかった項目はnullとし
 schema_version 2.1:
   - consolidation_type / accounting_standard / currency / unit をトップレベルに追加
   - profit_loss → net_income_attributable_to_parent
-  - earnings_per_share → earnings_per_share_basic / earnings_per_share_diluted
-  - shares_outstanding を必須化
+  - total_number_of_issued_shares を必須化
   - current_year / prior_year に period (start/end) を追加
-  - EPS整合チェックを実装
+schema_version 2.2:
+  - EPS削除（再計算可能なためFactレイクに含めない。valuation-engineで算出）
 
 Schema changes must increment schema_version.
 data_version represents fiscal period identity, not generation timestamp.
@@ -35,7 +35,7 @@ from src import __version__
 
 logger = logging.getLogger(__name__)
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "2.0"  # 2.0: EPS削除（再計算可能なためFactレイクに含めない）
 
 DERIVED_KEYS = frozenset({
     "roe", "roa", "roic", "operating_margin", "net_margin",
@@ -44,21 +44,19 @@ DERIVED_KEYS = frozenset({
     "per", "pbr", "psr", "peg", "dividend_yield",
     "free_cash_flow", "cagr",
     "profit_loss", "earnings_per_share",
+    "earnings_per_share_basic", "earnings_per_share_diluted",
 })
 
 FACT_KEYS = frozenset({
     "total_assets", "equity", "interest_bearing_debt",
     "net_sales", "operating_income",
     "net_income_attributable_to_parent",
-    "earnings_per_share_basic", "earnings_per_share_diluted",
-    "shares_outstanding",
+    "total_number_of_issued_shares",
 })
 
 VALID_ACCOUNTING_STANDARDS = frozenset({
     "JGAAP", "IFRS", "US-GAAP",
 })
-
-EPS_TOLERANCE_RATIO = 0.01
 
 
 def normalize_security_code(raw: str) -> str:
@@ -102,33 +100,6 @@ def _validate_metrics(metrics: dict[str, Any], label: str, security_code: str) -
     non_null_count = sum(1 for v in metrics.values() if v is not None)
     if non_null_count == 0:
         logger.warning("VALIDATION WARN [%s] %s: 全項目がnull", security_code, label)
-
-
-def _validate_eps_consistency(
-    metrics: dict[str, Any], label: str, security_code: str,
-) -> None:
-    """
-    EPS整合チェック: |EPS_basic - (net_income / shares_outstanding)| の誤差率が1%以内か。
-    超えた場合は警告ログを出力する（データ不採用ではなく警告）。
-    """
-    eps = metrics.get("earnings_per_share_basic")
-    net_income = metrics.get("net_income_attributable_to_parent")
-    shares = metrics.get("shares_outstanding")
-
-    if eps is None or net_income is None or shares is None or shares == 0:
-        return
-
-    computed_eps = net_income / shares
-    if abs(eps) < 0.001:
-        return
-
-    error_ratio = abs(eps - computed_eps) / abs(eps)
-    if error_ratio > EPS_TOLERANCE_RATIO:
-        logger.warning(
-            "EPS CONSISTENCY WARN [%s] %s: "
-            "eps_basic=%.2f, computed=%.2f (net_income/shares), error=%.2f%%",
-            security_code, label, eps, computed_eps, error_ratio * 100,
-        )
 
 
 class JSONExporter:
@@ -246,10 +217,8 @@ class JSONExporter:
 
         if current_metrics:
             _validate_metrics(current_metrics, "current_year", sc)
-            _validate_eps_consistency(current_metrics, "current_year", sc)
         if prior_metrics:
             _validate_metrics(prior_metrics, "prior_year", sc)
-            _validate_eps_consistency(prior_metrics, "prior_year", sc)
 
         if not current_metrics:
             raise ValueError(

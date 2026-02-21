@@ -1,8 +1,8 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "engine_version": "1.0.0",
   "data_version": "2025FY",
-  "generated_at": "2026-02-21T06:37:44Z",
+  "generated_at": "2026-02-21T09:23:17Z",
   "doc_id": "S100W67S",
   "security_code": "4827",
   "report_type": "annual",
@@ -11,37 +11,31 @@
   "currency": "JPY",
   "unit": "JPY",
   "current_year": {
-    "period": {
-      "start": "2024-04-01",
-      "end": "2025-03-31"
-    },
     "metrics": {
       "total_assets": 30554571000.0,
       "equity": 5805695000.0,
-      "interest_bearing_debt": null,
       "net_sales": 16094118000.0,
       "operating_income": 1461488000.0,
       "net_income_attributable_to_parent": 828459000.0,
-      "earnings_per_share_basic": 199.68,
-      "earnings_per_share_diluted": null,
-      "shares_outstanding": 4148000
+      "total_number_of_issued_shares": 4148000
+    },
+    "period": {
+      "start": "2024-04-01",
+      "end": "2025-03-31"
     }
   },
   "prior_year": {
-    "period": {
-      "start": "2023-04-01",
-      "end": "2024-03-31"
-    },
     "metrics": {
       "total_assets": 28546264000.0,
       "equity": 5018725000.0,
-      "interest_bearing_debt": null,
       "net_sales": 13409224000.0,
       "operating_income": 1331316000.0,
       "net_income_attributable_to_parent": 743129000.0,
-      "earnings_per_share_basic": 179.11,
-      "earnings_per_share_diluted": null,
-      "shares_outstanding": 4148000
+      "total_number_of_issued_shares": 4148000
+    },
+    "period": {
+      "start": "2023-04-01",
+      "end": "2024-03-31"
     }
   }
 }

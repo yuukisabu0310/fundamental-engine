@@ -1,6 +1,7 @@
 """
 FinancialMaster 動作確認用スクリプト。
-Fact-only出力（会計定義明示・EPS分離・period保持）を検証する。
+Fact-only出力（会計定義明示・period保持）を検証する。
+EPSは再計算可能なため出力しない。
 
 使用例:
     python scripts/test_financial_master.py
@@ -20,8 +21,7 @@ FACT_KEYS = {
     "total_assets", "equity", "interest_bearing_debt",
     "net_sales", "operating_income",
     "net_income_attributable_to_parent",
-    "earnings_per_share_basic", "earnings_per_share_diluted",
-    "shares_outstanding",
+    "total_number_of_issued_shares",
 }
 
 DERIVED_KEYS = {
@@ -101,8 +101,9 @@ if __name__ == "__main__":
 
     checks.append(("net_income_attributable_to_parent 存在",
                     "net_income_attributable_to_parent" in current_metrics))
-    checks.append(("earnings_per_share_basic 存在",
-                    "earnings_per_share_basic" in current_metrics))
+    checks.append(("total_number_of_issued_shares 存在", "total_number_of_issued_shares" in current_metrics))
+    checks.append(("EPSは含まない（再計算可能のため）",
+                    "earnings_per_share_basic" not in current_metrics))
     checks.append(("旧キー profit_loss 不在", "profit_loss" not in current_metrics))
     checks.append(("旧キー earnings_per_share 不在", "earnings_per_share" not in current_metrics))
 

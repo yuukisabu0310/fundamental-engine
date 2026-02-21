@@ -1,0 +1,41 @@
+{
+  "schema_version": "2.0",
+  "engine_version": "1.0.0",
+  "data_version": "2025FY",
+  "generated_at": "2026-02-21T09:23:08Z",
+  "doc_id": "S100XL6L",
+  "security_code": "2734",
+  "report_type": "annual",
+  "consolidation_type": "consolidated",
+  "accounting_standard": "JGAAP",
+  "currency": "JPY",
+  "unit": "JPY",
+  "current_year": {
+    "metrics": {
+      "total_assets": 218345000000.0,
+      "equity": 81630000000.0,
+      "net_sales": 251533000000.0,
+      "operating_income": 7381000000.0,
+      "net_income_attributable_to_parent": 5870000000.0,
+      "total_number_of_issued_shares": 64200000
+    },
+    "period": {
+      "start": "2024-12-01",
+      "end": "2025-11-30"
+    }
+  },
+  "prior_year": {
+    "metrics": {
+      "total_assets": 200000000000.0,
+      "equity": 75000000000.0,
+      "net_sales": 230000000000.0,
+      "operating_income": 6500000000.0,
+      "net_income_attributable_to_parent": 5000000000.0,
+      "total_number_of_issued_shares": 64200000
+    },
+    "period": {
+      "start": "2023-12-01",
+      "end": "2024-11-30"
+    }
+  }
+}

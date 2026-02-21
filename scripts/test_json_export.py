@@ -1,6 +1,7 @@
 """
 JSONExporter 動作確認用スクリプト。
-Fact-only・EPS分離・period保持・会計定義明示・EPS整合チェックを検証する。
+Fact-only・period保持・会計定義明示を検証する。
+EPSは再計算可能なためFactレイクに含めない。
 
 使用例:
     python scripts/test_json_export.py
@@ -47,9 +48,7 @@ if __name__ == "__main__":
                 "net_sales": 251533000000.0,
                 "operating_income": 7381000000.0,
                 "net_income_attributable_to_parent": 5870000000.0,
-                "earnings_per_share_basic": 91.44,
-                "earnings_per_share_diluted": None,
-                "shares_outstanding": 64200000,
+                "total_number_of_issued_shares": 64200000,
             },
         },
         "prior_year": {
@@ -60,9 +59,7 @@ if __name__ == "__main__":
                 "net_sales": 230000000000.0,
                 "operating_income": 6500000000.0,
                 "net_income_attributable_to_parent": 5000000000.0,
-                "earnings_per_share_basic": 77.88,
-                "earnings_per_share_diluted": None,
-                "shares_outstanding": 64200000,
+                "total_number_of_issued_shares": 64200000,
             },
         },
     }
@@ -107,10 +104,10 @@ if __name__ == "__main__":
 
     checks.append(("net_income_attributable_to_parent 存在",
                     "net_income_attributable_to_parent" in current_metrics))
-    checks.append(("earnings_per_share_basic 存在",
-                    "earnings_per_share_basic" in current_metrics))
-    checks.append(("shares_outstanding 存在",
-                    "shares_outstanding" in current_metrics))
+    checks.append(("total_number_of_issued_shares 存在",
+                    "total_number_of_issued_shares" in current_metrics))
+    checks.append(("EPSは含まない（再計算可能のため）",
+                    "earnings_per_share_basic" not in current_metrics))
 
     checks.append(("旧キー profit_loss 不在", "profit_loss" not in current_metrics))
     checks.append(("旧キー earnings_per_share 不在", "earnings_per_share" not in current_metrics))
@@ -122,9 +119,6 @@ if __name__ == "__main__":
     all_keys = set(current_metrics.keys()) | set(prior_metrics.keys())
     leaked = all_keys & PROHIBITED_KEYS
     checks.append(("Derived/Market キー混入なし", len(leaked) == 0))
-
-    checks.append(("earnings_per_share_diluted がnullで出力",
-                    "earnings_per_share_diluted" in current_metrics and current_metrics["earnings_per_share_diluted"] is None))
 
     # security_code 正規化ロジックテスト
     sc_cases = [
@@ -147,7 +141,7 @@ if __name__ == "__main__":
         "current_year": {
             "metrics": {"total_assets": 100.0, "equity": 50.0, "net_sales": 200.0,
                         "operating_income": 10.0, "net_income_attributable_to_parent": 5.0,
-                        "earnings_per_share_basic": 1.0, "shares_outstanding": 5},
+                        "total_number_of_issued_shares": 5},
         },
         "prior_year": {"metrics": {}},
     }

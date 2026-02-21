@@ -31,7 +31,7 @@ fundamental-engine         ← 本リポジトリ（財務Fact生成）
 │ financial-  │  │   market-dataset   │  Factデータレイク層
 │   dataset   │  │   株価/出来高/配当  │  (不可逆な事実のみ)
 │ 売上/利益   │  │                    │
-│ EPS/FCF     │  │                    │
+│ 株数        │  │                    │
 └──────┬──────┘  └────────────────────┘
        │
  fundamental-engine (本リポジトリ)
@@ -41,7 +41,7 @@ fundamental-engine         ← 本リポジトリ（財務Fact生成）
 
 - 有価証券報告書・四半期報告書のXBRL取得
 - タグの正規化（PL / BS / CF / DEI）
-- 財務Factの統合（equity / total_assets / net_sales / profit_loss / EPS / FCF等）
+- 財務Factの統合（equity / total_assets / net_sales / profit_loss / total_number_of_issued_shares等）
 - financial-datasetへのJSON出力・manifest管理
 
 ### 設計方針
@@ -50,6 +50,12 @@ fundamental-engine         ← 本リポジトリ（財務Fact生成）
 - **FactとDerivedの分離**: financial-datasetには確定決算の財務Factのみを保存。PER/PBR等の派生指標はvaluation-engineで算出
 - **レイヤー責務の厳守**: 各リポジトリは単一責任を持つ
 - **再計算可能な値は保存しない**: 株価依存の指標（PER/PBR/PSR等）はデータレイクに含めない
+
+### EPS設計（再計算可能な値は保存しない）
+
+EPSは `net_income / total_number_of_issued_shares` の派生値であり、Fact-onlyの原則に従いfinancial-datasetには保存しない。
+valuation-engineで `net_income_attributable_to_parent / total_number_of_issued_shares` として算出する。
+日本基準では `total_number_of_issued_shares` は期末株式数（加重平均ではない）のため近似値となるが、Factレイクは原則を厳守する。
 
 ## パイプライン
 
@@ -197,7 +203,7 @@ financial-dataset には**財務Factのみ**を保存する。Derived指標は�
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "engine_version": "1.0.0",
   "data_version": "2025FY",
   "generated_at": "2026-02-21T06:37:44Z",
@@ -219,9 +225,7 @@ financial-dataset には**財務Factのみ**を保存する。Derived指標は�
       "net_sales": 251533000000.0,
       "operating_income": 7381000000.0,
       "net_income_attributable_to_parent": 5870000000.0,
-      "earnings_per_share_basic": 91.44,
-      "earnings_per_share_diluted": null,
-      "shares_outstanding": 64200000
+      "total_number_of_issued_shares": 64200000
     }
   }
 }
@@ -235,7 +239,7 @@ financial-dataset には**財務Factのみ**を保存する。Derived指標は�
 | `consolidation_type` | `consolidated` / `non_consolidated`（連結/個別でROE等が変わるため明示） |
 | `accounting_standard` | `JGAAP` / `IFRS` / `US-GAAP`（会計基準による指標定義の違いを明示） |
 | `currency` | 通貨コード（固定: `JPY`） |
-| `unit` | 単位（固定: `JPY` — Normalizer が `decimals` 属性に基づき円単位に正規化済み） |
+| `unit` | 単位（固定: `JPY` — XBRL値をそのまま使用。EDINET主要指標は円単位で統一） |
 
 ### 出力ルール
 
@@ -245,7 +249,6 @@ financial-dataset には**財務Factのみ**を保存する。Derived指標は�
 - **Derived禁止**: ROE/ROA/ROIC/マージン/成長率/FCF/CAGR等の再計算可能な値はvaluation-engineの責務
 - **security_code正規化**: 5桁かつ末尾"0"の場合のみ末尾1桁を削除（例: "27340" → "2734"）
 - **会計定義明示**: consolidation_type / accounting_standard を必ず出力
-- **EPS分離**: basic と diluted を明確に分離
 - **period保持**: 変則決算・IFRS中間期に対応するため start/end を保持
 
 ### Fact項目一覧
@@ -258,9 +261,7 @@ financial-dataset には**財務Factのみ**を保存する。Derived指標は�
 | `net_sales` | PL | 売上高 |
 | `operating_income` | PL | 営業利益 |
 | `net_income_attributable_to_parent` | PL | 親会社株主に帰属する当期純利益（IFRS対応。旧: profit_loss） |
-| `earnings_per_share_basic` | PL | 基本的1株当たり当期純利益（旧: earnings_per_share） |
-| `earnings_per_share_diluted` | PL | 希薄化後1株当たり当期純利益（存在時のみ） |
-| `shares_outstanding` | BS | 発行済株式数（EPS整合検証に必須） |
+| `total_number_of_issued_shares` | BS | 発行済株式数（valuation-engineでEPS算出に使用） |
 
 ### 含めないデータ（レイヤー分離原則）
 
@@ -271,17 +272,11 @@ financial-dataset には**財務Factのみ**を保存する。Derived指標は�
 | stock_price / volume | 市場Fact | market-dataset |
 | PER / PBR / PSR / PEG / dividend_yield | Derived（再計算可能） | valuation-engine |
 
-### decimals 正規化（単位保証）
+### 単位の扱い
 
-XBRL の数値タグには `decimals` 属性が付与される（例: `decimals="0"` → 円単位、`decimals="-6"` → 百万円単位）。
-FactNormalizer は値変換時に `decimals` 属性を参照し、すべての数値を **円単位（JPY）** に正規化する。
-
-| decimals | 意味 | スケール係数 |
-|---|---|---|
-| `"0"` | 円単位 | 1 |
-| `"-3"` | 千円単位 | 1,000 |
-| `"-6"` | 百万円単位 | 1,000,000 |
-| `"INF"` / 空 | スケーリング不要 | 1 |
+XBRL の `decimals` 属性は**精度**を示すもので、単位変換には使用しない（XBRL仕様）。
+単位は `unitRef` が指す unit 定義で決まる。EDINET の主要財務指標は円単位で統一されているため、
+FactNormalizer は XBRL の値をそのまま使用する（スケーリングなし）。
 
 ### 出力前バリデーション
 
@@ -289,7 +284,6 @@ JSONExporter は出力前に以下を検証する：
 
 1. metrics 内に Derived 指標が混入していないか → **エラー**
 2. 全項目がnullでないか → **警告**
-3. EPS整合チェック: `|EPS_basic - (net_income / shares_outstanding)|` の誤差率が1%以内か → **警告**
 
 ## データセット自動生成とプッシュ
 
