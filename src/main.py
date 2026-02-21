@@ -53,7 +53,7 @@ def main():
     # ログ設定
     logger = setup_logging(log_dir)
     logger.info("=" * 60)
-    logger.info("EDINET XBRL取得システム - Phase1 開始")
+    logger.info("EDINET XBRL取得システム - 開始")
     logger.info("=" * 60)
     
     try:

@@ -1,5 +1,5 @@
 """
-Phase5.2 data_version 決算期ベース生成のテストスクリプト。
+data_version 決算期ベース生成のテストスクリプト。
 """
 import json
 import os
@@ -105,51 +105,46 @@ if __name__ == "__main__":
     assert result8 == "2025FY", f"期待値: 2025FY, 実際: {result8}"
     print("[OK] テストケース8 成功\n")
 
-    # 実際のパイプラインでの動作確認
+    # 実際のパイプラインでの動作確認（Fact-onlyダミーデータ）
     print("=" * 60)
     print("実際のパイプラインでの動作確認")
     print("=" * 60)
-    dummy_valuation_dict = {
+    dummy_financial_dict = {
         "doc_id": "S100W67S",
         "security_code": "4827",
         "fiscal_year_end": "2025-03-31",
         "report_type": "annual",
+        "consolidation_type": "consolidated",
+        "accounting_standard": "Japan GAAP",
         "current_year": {
+            "period": {"start": "2024-04-01", "end": "2025-03-31"},
             "metrics": {
+                "total_assets": 30554571000.0,
                 "equity": 5805695000.0,
                 "net_sales": 16094118000.0,
-                "earnings_per_share": 199.68,
-                "roe": 0.1426976,
-                "eps_growth": 0.11481234,
-            },
-            "market": {
-                "stock_price": 2500.0,
-                "shares_outstanding": 5000000,
-                "market_cap": 12500000000.0,
-                "dividend_per_share": 50.0,
-            },
-            "valuation": {
-                "per": 12.520032051282051,
-                "pbr": 2.1530583332400344,
-                "psr": 0.7766812695172236,
-                "peg": 1.0901618574162026,
-                "dividend_yield": 0.020000123,
+                "operating_income": 1461488000.0,
+                "net_income_attributable_to_parent": 828459000.0,
+                "earnings_per_share_basic": 199.68,
+                "shares_outstanding": 4148000,
             },
         },
         "prior_year": {
+            "period": {"start": "2023-04-01", "end": "2024-03-31"},
             "metrics": {
+                "total_assets": 28546264000.0,
                 "equity": 5018725000.0,
                 "net_sales": 13409224000.0,
-                "earnings_per_share": 179.11,
-                "roe": 0.1481234,
+                "operating_income": 1331316000.0,
+                "net_income_attributable_to_parent": 743129000.0,
+                "earnings_per_share_basic": 179.11,
+                "shares_outstanding": 4148000,
             },
         },
     }
 
-    output_path = exporter.export(dummy_valuation_dict)
+    output_path = exporter.export(dummy_financial_dict)
     print(f"保存パス: {output_path}")
 
-    # JSON 読み込み確認
     with open(output_path, "r", encoding="utf-8") as f:
         loaded = json.load(f)
 
@@ -158,15 +153,16 @@ if __name__ == "__main__":
     print(f"engine_version: {loaded.get('engine_version')}")
     print(f"data_version: {loaded.get('data_version')}")
     print(f"generated_at: {loaded.get('generated_at')}")
-    print(f"fiscal_year_end: {loaded.get('fiscal_year_end')}")
     print(f"report_type: {loaded.get('report_type')}")
+    print(f"consolidation_type: {loaded.get('consolidation_type')}")
+    print(f"accounting_standard: {loaded.get('accounting_standard')}")
 
-    # 検証
     checks = []
     checks.append(("data_version が FY形式", loaded.get("data_version") == "2025FY"))
-    checks.append(("fiscal_year_end 存在", loaded.get("fiscal_year_end") == "2025-03-31"))
     checks.append(("report_type 存在", loaded.get("report_type") == "annual"))
     checks.append(("generated_at 存在", loaded.get("generated_at") is not None))
+    checks.append(("consolidation_type 存在", loaded.get("consolidation_type") == "consolidated"))
+    checks.append(("accounting_standard 正規化", loaded.get("accounting_standard") == "JGAAP"))
 
     print("\n--- 検証結果 ---")
     all_ok = True

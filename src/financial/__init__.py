@@ -1,5 +1,5 @@
 """
-財務指標計算モジュール（Phase3）
+財務Fact統合モジュール
 """
 from .financial_master import FinancialMaster
 

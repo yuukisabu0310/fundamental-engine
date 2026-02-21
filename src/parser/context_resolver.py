@@ -1,5 +1,5 @@
 """
-ContextResolver（Phase2 Step2）
+ContextResolver
 XBRLのcontextノードを解析し、factに期間情報を付与する。
 """
 import logging

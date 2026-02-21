@@ -1,5 +1,5 @@
 """
-Phase2 Step3 FactNormalizer 動作確認用スクリプト。
+FactNormalizer 動作確認用スクリプト。
 main.py に影響を与えない。プロジェクトルートから実行すること。
 
 使用例:

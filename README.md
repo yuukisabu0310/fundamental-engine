@@ -190,70 +190,84 @@ config/
 1. **ファイル名による早期スキップ**: ファイル名に `jplvh`（大量保有報告書）/ `jpaud`（監査報告書）等のパターンが含まれる場合
 2. **必須項目検証**: `security_code` または `fiscal_year_end` が取得できない場合
 
-## JSON出力仕様（schema_version 2.0）
+## JSON出力仕様（schema_version 1.0）
 
 financial-dataset には**財務Factのみ**を保存する。Derived指標・null値・空データは一切含めない。
+EDINET原本に対して100%トレーサブルなデータ構造を採用する。
 
 ```json
 {
-  "schema_version": "2.0",
+  "schema_version": "1.0",
   "engine_version": "1.0.0",
   "data_version": "2025FY",
-  "generated_at": "2026-02-18T12:00:00Z",
-  "doc_id": "S100W67S",
-  "security_code": "4827",
-  "fiscal_year_end": "2025-03-31",
+  "generated_at": "2026-02-21T06:37:44Z",
+  "doc_id": "S100XL6L",
+  "security_code": "2734",
   "report_type": "annual",
+  "consolidation_type": "consolidated",
+  "accounting_standard": "JGAAP",
+  "currency": "JPY",
+  "unit": "JPY",
   "current_year": {
+    "period": {
+      "start": "2024-12-01",
+      "end": "2025-11-30"
+    },
     "metrics": {
-      "equity": 5805695000.0,
-      "total_assets": 30554571000.0,
-      "net_sales": 16094118000.0,
-      "operating_income": 1461488000.0,
-      "profit_loss": 828459000.0,
-      "earnings_per_share": 199.68
-    }
-  },
-  "prior_year": {
-    "metrics": {
-      "equity": 5018725000.0,
-      "total_assets": 28546264000.0,
-      "net_sales": 13409224000.0,
-      "operating_income": 1331316000.0,
-      "profit_loss": 743129000.0,
-      "earnings_per_share": 179.11
+      "total_assets": 218345000000.0,
+      "equity": 81630000000.0,
+      "net_sales": 251533000000.0,
+      "operating_income": 7381000000.0,
+      "net_income_attributable_to_parent": 5870000000.0,
+      "earnings_per_share_basic": 91.44,
+      "shares_outstanding": 64200000
     }
   }
 }
 ```
+
+### トップレベル項目
+
+| 項目 | 説明 |
+|---|---|
+| `schema_version` | JSON構造バージョン（破壊的変更時にインクリメント） |
+| `consolidation_type` | `consolidated` / `non_consolidated`（連結/個別でROE等が変わるため明示） |
+| `accounting_standard` | `JGAAP` / `IFRS` / `US-GAAP`（会計基準による指標定義の違いを明示） |
+| `currency` | 通貨コード（固定: `JPY`） |
+| `unit` | 単位（固定: `JPY` — 百万円問題を完全排除） |
 
 ### 出力ルール
 
 - **Factのみ**: 財務諸表に記載された数値のみ出力
 - **null出力禁止**: 値が取得できなかった項目はキーごと省略
 - **空prior_year省略**: prior_yearに有効なFactがなければキー自体を出力しない
-- **Derived禁止**: ROE/ROA/マージン/成長率等の再計算可能な値はvaluation-engineの責務
-- **security_code正規化**: 5桁かつ末尾"0"の場合のみ末尾1桁を削除（例: "48270" → "4827"）。rstrip/int変換は行わない
+- **Derived禁止**: ROE/ROA/ROIC/マージン/成長率/FCF/CAGR等の再計算可能な値はvaluation-engineの責務
+- **security_code正規化**: 5桁かつ末尾"0"の場合のみ末尾1桁を削除（例: "27340" → "2734"）
+- **会計定義明示**: consolidation_type / accounting_standard を必ず出力
+- **EPS分離**: basic と diluted を明確に分離
+- **period保持**: 変則決算・IFRS中間期に対応するため start/end を保持
 
 ### Fact項目一覧
 
 | キー | 出典 | 説明 |
 |---|---|---|
-| `equity` | BS | 自己資本（shareholders_equity > equity > net_assets の優先順位で選択） |
 | `total_assets` | BS | 総資産 |
+| `equity` | BS | 自己資本（shareholders_equity > equity > net_assets の優先順位で選択） |
 | `interest_bearing_debt` | BS | 有利子負債（XBRLタグ存在時のみ、内訳合算は行わない） |
 | `net_sales` | PL | 売上高 |
 | `operating_income` | PL | 営業利益 |
-| `profit_loss` | PL | 当期純利益 |
-| `earnings_per_share` | PL | 1株当たり利益 |
+| `net_income_attributable_to_parent` | PL | 親会社株主に帰属する当期純利益（IFRS対応。旧: profit_loss） |
+| `earnings_per_share_basic` | PL | 基本的1株当たり当期純利益（旧: earnings_per_share） |
+| `earnings_per_share_diluted` | PL | 希薄化後1株当たり当期純利益（存在時のみ） |
+| `shares_outstanding` | BS | 発行済株式数（EPS整合検証に必須） |
 
 ### 含めないデータ（レイヤー分離原則）
 
 | データ | 分類 | 所属レイヤー |
 |---|---|---|
-| free_cash_flow (営業CF + 投資CF) | Derived（CF合算計算値） | valuation-engine |
-| ROE / ROA / マージン / 成長率 | Derived（再計算可能） | valuation-engine |
-| stock_price / volume / shares_outstanding | 市場Fact | market-dataset |
+| ROE / ROA / ROIC / マージン / 成長率 / CAGR | Derived（再計算可能） | valuation-engine |
+| FCF (営業CF + 投資CF) | Derived（CF合算計算値） | valuation-engine |
+| stock_price / volume | 市場Fact | market-dataset |
 | PER / PBR / PSR / PEG / dividend_yield | Derived（再計算可能） | valuation-engine |
 
 ### 出力前バリデーション
@@ -263,7 +277,7 @@ JSONExporter は出力前に以下を検証する：
 1. metrics 内に Derived 指標が混入していないか → **エラー**
 2. null 値が存在しないか → **エラー**
 3. metrics が空でないか → **警告**
-4. operating_income と profit_loss が同値でないか → **警告**
+4. EPS整合チェック: `|EPS_basic - (net_income / shares_outstanding)|` の誤差率が1%以内か → **警告**
 
 ## データセット自動生成とプッシュ
 

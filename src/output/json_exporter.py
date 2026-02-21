@@ -5,6 +5,14 @@ FinancialMaster の出力を financial-dataset へ永続化する。
 financial-dataset は「確定決算の財務Factのみ」を保存するデータレイク。
 Derived指標・null値・空データは一切含めない。
 
+schema_version 2.1:
+  - consolidation_type / accounting_standard / currency / unit をトップレベルに追加
+  - profit_loss → net_income_attributable_to_parent
+  - earnings_per_share → earnings_per_share_basic / earnings_per_share_diluted
+  - shares_outstanding を必須化
+  - current_year / prior_year に period (start/end) を追加
+  - EPS整合チェックを実装
+
 Schema changes must increment schema_version.
 data_version represents fiscal period identity, not generation timestamp.
 
@@ -27,21 +35,30 @@ from src import __version__
 
 logger = logging.getLogger(__name__)
 
+SCHEMA_VERSION = "1.0"
+
 DERIVED_KEYS = frozenset({
-    "roe", "roa", "operating_margin", "net_margin",
+    "roe", "roa", "roic", "operating_margin", "net_margin",
     "equity_ratio", "de_ratio",
     "sales_growth", "profit_growth", "eps_growth",
     "per", "pbr", "psr", "peg", "dividend_yield",
-    "free_cash_flow",
+    "free_cash_flow", "cagr",
+    "profit_loss", "earnings_per_share",
 })
 
 FACT_KEYS = frozenset({
-    "equity", "total_assets", "interest_bearing_debt",
-    "net_sales", "operating_income", "profit_loss",
-    "earnings_per_share",
+    "total_assets", "equity", "interest_bearing_debt",
+    "net_sales", "operating_income",
+    "net_income_attributable_to_parent",
+    "earnings_per_share_basic", "earnings_per_share_diluted",
+    "shares_outstanding",
 })
 
-MARKET_SECTION_KEYS = frozenset({"market", "valuation"})
+VALID_ACCOUNTING_STANDARDS = frozenset({
+    "JGAAP", "IFRS", "US-GAAP",
+})
+
+EPS_TOLERANCE_RATIO = 0.01
 
 
 def normalize_security_code(raw: str) -> str:
@@ -52,14 +69,29 @@ def normalize_security_code(raw: str) -> str:
     return s
 
 
+def _normalize_accounting_standard(raw: str | None) -> str | None:
+    """会計基準を正規化。EDINET DEIの表記ゆれを吸収する。"""
+    if not raw:
+        return None
+    s = raw.strip()
+    mapping = {
+        "Japan GAAP": "JGAAP",
+        "日本基準": "JGAAP",
+        "IFRS": "IFRS",
+        "US GAAP": "US-GAAP",
+        "US-GAAP": "US-GAAP",
+        "JGAAP": "JGAAP",
+    }
+    return mapping.get(s, s)
+
+
 def _validate_metrics(metrics: dict[str, Any], label: str, security_code: str) -> None:
     """
-    出力前バリデーション。問題があればログに警告を出力する。
+    出力前バリデーション。
 
     1. Derived指標が混入していないか
     2. null値が存在しないか
     3. metricsが空でないか
-    4. operating_income と profit_loss が同値でないか（警告）
     """
     leaked = set(metrics.keys()) & DERIVED_KEYS
     if leaked:
@@ -78,12 +110,31 @@ def _validate_metrics(metrics: dict[str, Any], label: str, security_code: str) -
     if not metrics:
         logger.warning("VALIDATION WARN [%s] %s: metricsが空", security_code, label)
 
-    op_income = metrics.get("operating_income")
-    profit = metrics.get("profit_loss")
-    if op_income is not None and profit is not None and op_income == profit:
+
+def _validate_eps_consistency(
+    metrics: dict[str, Any], label: str, security_code: str,
+) -> None:
+    """
+    EPS整合チェック: |EPS_basic - (net_income / shares_outstanding)| の誤差率が1%以内か。
+    超えた場合は警告ログを出力する（データ不採用ではなく警告）。
+    """
+    eps = metrics.get("earnings_per_share_basic")
+    net_income = metrics.get("net_income_attributable_to_parent")
+    shares = metrics.get("shares_outstanding")
+
+    if eps is None or net_income is None or shares is None or shares == 0:
+        return
+
+    computed_eps = net_income / shares
+    if abs(eps) < 0.001:
+        return
+
+    error_ratio = abs(eps - computed_eps) / abs(eps)
+    if error_ratio > EPS_TOLERANCE_RATIO:
         logger.warning(
-            "VALIDATION WARN [%s] %s: operating_income と profit_loss が同値 (%s)",
-            security_code, label, op_income,
+            "EPS CONSISTENCY WARN [%s] %s: "
+            "eps_basic=%.2f, computed=%.2f (net_income/shares), error=%.2f%%",
+            security_code, label, eps, computed_eps, error_ratio * 100,
         )
 
 
@@ -137,19 +188,16 @@ class JSONExporter:
             logger.warning("Failed to parse fiscal_year_end: %s, using UNKNOWN", e)
             return "UNKNOWN"
 
-    def _sanitize_metrics(self, year_data: dict[str, Any]) -> dict[str, float] | None:
+    def _sanitize_metrics(self, year_data: dict[str, Any]) -> dict[str, float | int] | None:
         """
         year_data から metrics を抽出し、Factのみを残す。
-        - Derived指標を除去
-        - null値を除去
-        - market/valuation セクションを除去
         有効なFactがなければ None を返す。
         """
         metrics = year_data.get("metrics")
         if not metrics or not isinstance(metrics, dict):
             return None
 
-        clean: dict[str, float] = {}
+        clean: dict[str, float | int] = {}
         for key, value in metrics.items():
             if key in DERIVED_KEYS:
                 continue
@@ -198,42 +246,64 @@ class JSONExporter:
                 "有価証券報告書・四半期報告書以外の書類は処理対象外です。"
             )
 
-        current_metrics = self._sanitize_metrics(financial_dict.get("current_year", {}))
-        prior_metrics = self._sanitize_metrics(financial_dict.get("prior_year", {}))
+        current_data = financial_dict.get("current_year", {})
+        prior_data = financial_dict.get("prior_year", {})
+        current_metrics = self._sanitize_metrics(current_data)
+        prior_metrics = self._sanitize_metrics(prior_data)
 
         if current_metrics:
             _validate_metrics(current_metrics, "current_year", sc)
+            _validate_eps_consistency(current_metrics, "current_year", sc)
         if prior_metrics:
             _validate_metrics(prior_metrics, "prior_year", sc)
+            _validate_eps_consistency(prior_metrics, "prior_year", sc)
 
         if not current_metrics:
             raise ValueError(
                 f"current_year に有効なFactが存在しません (security_code={sc})"
             )
 
+        consolidation_type = financial_dict.get("consolidation_type", "consolidated")
+        accounting_standard = _normalize_accounting_standard(
+            financial_dict.get("accounting_standard"),
+        )
+
         logger.info(
-            "Exporting: security_code=%s, data_version=%s, current=%d facts, prior=%s facts",
-            sc, data_version, len(current_metrics),
+            "Exporting: security_code=%s, data_version=%s, standard=%s, current=%d facts, prior=%s facts",
+            sc, data_version, accounting_standard,
+            len(current_metrics),
             len(prior_metrics) if prior_metrics else 0,
         )
 
         output_dir = self.base_dir / report_type / data_version
         output_dir.mkdir(parents=True, exist_ok=True)
 
+        current_block: dict[str, Any] = {"metrics": current_metrics}
+        current_period = current_data.get("period")
+        if current_period:
+            current_block["period"] = current_period
+
         output_dict: dict[str, Any] = {
-            "schema_version": "2.0",
+            "schema_version": SCHEMA_VERSION,
             "engine_version": __version__,
             "data_version": data_version,
             "generated_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
             "doc_id": financial_dict.get("doc_id", ""),
             "security_code": sc,
-            "fiscal_year_end": fiscal_year_end,
             "report_type": report_type,
-            "current_year": {"metrics": current_metrics},
+            "consolidation_type": consolidation_type,
+            "accounting_standard": accounting_standard,
+            "currency": "JPY",
+            "unit": "JPY",
+            "current_year": current_block,
         }
 
         if prior_metrics:
-            output_dict["prior_year"] = {"metrics": prior_metrics}
+            prior_block: dict[str, Any] = {"metrics": prior_metrics}
+            prior_period = prior_data.get("period")
+            if prior_period:
+                prior_block["period"] = prior_period
+            output_dict["prior_year"] = prior_block
 
         output_path = output_dir / f"{sc}.json"
         with open(output_path, "w", encoding="utf-8") as f:

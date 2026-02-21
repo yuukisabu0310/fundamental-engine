@@ -1,5 +1,5 @@
 """
-正規化モジュール（Phase2 Step3）
+正規化モジュール
 """
 from .fact_normalizer import FactNormalizer
 

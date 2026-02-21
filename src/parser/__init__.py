@@ -1,5 +1,5 @@
 """
-XBRLパーサーモジュール（Phase2 Step1）
+XBRLパーサーモジュール
 """
 from .xbrl_parser import XBRLParser
 

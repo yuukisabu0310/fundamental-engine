@@ -1,5 +1,5 @@
 """
-FactNormalizer（Phase2 Step3）
+FactNormalizer
 事実の正規化専用レイヤー。タグ→標準キー変換・current/prior分類・型変換・連結優先のみ。
 補完・再構成・推測は行わず、FinancialMasterで処理する。
 """
@@ -37,6 +37,9 @@ BS_TAGS = [
     ("CurrentLiabilities", "current_liabilities"),
     ("NoncurrentLiabilities", "noncurrent_liabilities"),
     ("InterestBearingDebt", "interest_bearing_debt"),
+    ("TotalNumberOfIssuedSharesSummaryOfBusinessResults", "shares_outstanding"),
+    ("IssuedSharesTotalNumberOfSharesEtc", "shares_outstanding"),
+    ("NumberOfIssuedSharesAsOfFilingDateTotalNumberOfSharesEtc", "shares_outstanding"),
 ]
 
 # CF（duration）: タグ部分一致 -> 出力キー（EDINETは NetCashProvidedByUsedIn*SummaryOfBusinessResults 等）
@@ -358,10 +361,22 @@ class FactNormalizer:
         # 将来的には、XBRLParser からファイル名を取得して判定する
         return "annual"
 
+    def _build_period(self, is_current: bool) -> dict[str, str] | None:
+        """duration contextからperiod(start/end)を構築する。"""
+        target_end = self._current_year_end if is_current else self._prior_year_end
+        if not target_end:
+            return None
+        for ctx in self._context_map.values():
+            if ctx.get("type") == "duration" and ctx.get("end_date") == target_end:
+                start = ctx.get("start_date")
+                if start:
+                    return {"start": start, "end": target_end}
+        return None
+
     def normalize(self) -> dict[str, Any]:
         """
         正規化結果を返す。
-        current_year / prior_year それぞれに pl, bs, cf を持つ構造。
+        current_year / prior_year それぞれに pl, bs, cf, period を持つ構造。
         """
         facts = self._parsed.get("facts") or []
         dei = self._pick_dei(facts)
@@ -372,16 +387,20 @@ class FactNormalizer:
         prior_bs = self._extract_bs(facts, is_current=False)
         current_cf = self._pick_duration_facts(facts, CF_TAGS, is_current=True)
         prior_cf = self._pick_duration_facts(facts, CF_TAGS, is_current=False)
+        current_period = self._build_period(is_current=True)
+        prior_period = self._build_period(is_current=False)
 
-        # report_type の判定（暫定的にファイル名から判定できない場合は "unknown"）
         report_type = self._detect_report_type()
 
-        return {
+        consolidation_type = "consolidated" if dei["is_consolidated"] else "non_consolidated"
+
+        result: dict[str, Any] = {
             "doc_id": self._parsed.get("doc_id", ""),
             "security_code": dei["security_code"],
             "company_name": dei["company_name"],
             "accounting_standard": dei["accounting_standard"],
             "is_consolidated": dei["is_consolidated"],
+            "consolidation_type": consolidation_type,
             "fiscal_year_end": dei["fiscal_year_end"],
             "report_type": report_type,
             "current_year": {
@@ -395,3 +414,10 @@ class FactNormalizer:
                 "cf": prior_cf,
             },
         }
+
+        if current_period:
+            result["current_year"]["period"] = current_period
+        if prior_period:
+            result["prior_year"]["period"] = prior_period
+
+        return result

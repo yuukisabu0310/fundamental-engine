@@ -1,5 +1,5 @@
 """
-XBRLパーサー（Phase2 Step1）
+XBRLパーサー
 生fact抽出基盤。正規化・財務指標計算は行わない。
 """
 import re

@@ -1,5 +1,5 @@
 """
-Phase6 DatasetManifestGenerator 動作確認用スクリプト（型安全・拡張可能設計）。
+DatasetManifestGenerator 動作確認用スクリプト。
 """
 import json
 import os

@@ -1,5 +1,5 @@
 """
-DatasetManifestGenerator（Phase6）
+DatasetManifestGenerator
 Data Repo内のフォルダをスキャンし、dataset_manifest.json を自動生成する。
 
 型安全・拡張可能・Screening互換設計。

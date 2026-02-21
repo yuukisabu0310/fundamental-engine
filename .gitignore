@@ -23,6 +23,9 @@ logs/
 .DS_Store
 Thumbs.db
 
+# Generated files
+repomix-output.xml
+
 # Config (API keys / local settings)
 config/settings.yaml
 config/settings.json
