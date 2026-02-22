@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "engine_version": "1.0.0",
-  "generated_at": "2026-02-22T08:14:39Z",
+  "generated_at": "2026-02-22T08:17:59Z",
   "latest_annual": "2025FY",
   "latest_quarterly": null,
   "annual_periods": [
@@ -10,7 +10,7 @@
   "quarterly_periods": [],
   "record_counts": {
     "annual": {
-      "2025FY": 3
+      "2025FY": 2
     },
     "quarterly": {}
   }

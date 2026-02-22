@@ -203,7 +203,7 @@ financial-dataset には**財務Factのみ**を保存する。Derived指標は�
 
 ```json
 {
-  "schema_version": "3.0",
+  "schema_version": "1.0",
   "engine_version": "1.0.0",
   "data_version": "2025FY",
   "generated_at": "2026-02-21T06:37:44Z",

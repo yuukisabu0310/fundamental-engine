@@ -5,20 +5,7 @@ FinancialMaster の出力を financial-dataset へ永続化する。
 financial-dataset は「確定決算の財務Factのみ」を保存するデータレイク。
 Derived指標は含めない。値が取得できなかった項目はnullとして出力する。
 
-schema_version 2.1:
-  - consolidation_type / accounting_standard / currency / unit をトップレベルに追加
-  - profit_loss → net_income_attributable_to_parent
-  - total_number_of_issued_shares を必須化
-  - current_year / prior_year に period (start/end) を追加
-schema_version 2.2:
-  - EPS削除（再計算可能なためFactレイクに含めない。valuation-engineで算出）
-schema_version 3.0:
-  - タクソノミ仕様書ベースのマッピング拡充（JGAAP/IFRS対応）
-  - 追加: ordinary_income, cash_and_equivalents, operating_cash_flow, depreciation, dividends_per_share
-  - 追加: 有利子負債構成9項目（生データ保存、合算はvaluation-engineで実施）
-  - interest_bearing_debt を削除（構成項目の生データに置換）
-
-Schema changes must increment schema_version.
+schema_version 1.0: 正式版未確定のため 1.0 のまま。破壊的変更時は将来インクリメント予定。
 data_version represents fiscal period identity, not generation timestamp.
 
 外部データリポジトリ（financial-dataset）に出力する。
@@ -40,7 +27,7 @@ from src import __version__
 
 logger = logging.getLogger(__name__)
 
-SCHEMA_VERSION = "3.0"
+SCHEMA_VERSION = "1.0"
 
 DERIVED_KEYS = frozenset({
     "roe", "roa", "roic", "operating_margin", "net_margin",
