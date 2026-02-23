@@ -10,6 +10,8 @@ data_version represents fiscal period identity, not generation timestamp.
 
 外部データリポジトリ（financial-dataset）に出力する。
 DATASET_PATH 環境変数で出力先を指定する。
+
+FACT_KEYS / DERIVED_KEYS / 会計基準マッピングは config/canonical_keys.yaml から読み込む。
 """
 import json
 import logging
@@ -24,48 +26,30 @@ if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
 from src import __version__
+try:
+    from src.config_loader import (
+        get_accounting_standard_mapping,
+        get_derived_keys,
+        get_fact_keys,
+        get_valid_accounting_standards,
+    )
+except ModuleNotFoundError:
+    from config_loader import (
+        get_accounting_standard_mapping,
+        get_derived_keys,
+        get_fact_keys,
+        get_valid_accounting_standards,
+    )
 
 logger = logging.getLogger(__name__)
 
 SCHEMA_VERSION = "1.0"
 
-DERIVED_KEYS = frozenset({
-    "roe", "roa", "roic", "operating_margin", "net_margin",
-    "equity_ratio", "de_ratio",
-    "sales_growth", "profit_growth", "eps_growth",
-    "per", "pbr", "psr", "peg", "dividend_yield",
-    "free_cash_flow", "cagr",
-    "profit_loss", "earnings_per_share",
-    "earnings_per_share_basic", "earnings_per_share_diluted",
-    "interest_bearing_debt",
-})
+DERIVED_KEYS = get_derived_keys()
+FACT_KEYS = get_fact_keys()
+VALID_ACCOUNTING_STANDARDS = get_valid_accounting_standards()
 
-FACT_KEYS = frozenset({
-    # 基礎財務項目
-    "total_assets", "equity",
-    "net_sales", "operating_income", "ordinary_income",
-    "net_income_attributable_to_parent",
-    "total_number_of_issued_shares",
-    # 分析用追加項目
-    "cash_and_equivalents",
-    "operating_cash_flow",
-    "depreciation",
-    "dividends_per_share",
-    # 有利子負債構成項目
-    "short_term_borrowings",
-    "current_portion_of_long_term_borrowings",
-    "commercial_papers",
-    "current_portion_of_bonds",
-    "short_term_lease_obligations",
-    "bonds_payable",
-    "long_term_borrowings",
-    "long_term_lease_obligations",
-    "lease_obligations",
-})
-
-VALID_ACCOUNTING_STANDARDS = frozenset({
-    "JGAAP", "IFRS", "US-GAAP",
-})
+_ACCOUNTING_STANDARD_MAP = get_accounting_standard_mapping()
 
 
 def normalize_security_code(raw: str) -> str:
@@ -81,15 +65,7 @@ def _normalize_accounting_standard(raw: str | None) -> str | None:
     if not raw:
         return None
     s = raw.strip()
-    mapping = {
-        "Japan GAAP": "JGAAP",
-        "日本基準": "JGAAP",
-        "IFRS": "IFRS",
-        "US GAAP": "US-GAAP",
-        "US-GAAP": "US-GAAP",
-        "JGAAP": "JGAAP",
-    }
-    return mapping.get(s, s)
+    return _ACCOUNTING_STANDARD_MAP.get(s, s)
 
 
 def _validate_metrics(metrics: dict[str, Any], label: str, security_code: str) -> None:
@@ -183,16 +159,6 @@ class JSONExporter:
     def export(self, financial_dict: dict[str, Any]) -> str:
         """
         財務Factのみを JSON として書き出し、保存パスを返す。
-
-        Args:
-            financial_dict: FinancialMaster.compute() の戻り値。
-
-        Returns:
-            保存された JSON ファイルのパス（文字列）。
-
-        Raises:
-            ValueError: security_code, report_type, data_version が存在しない、
-                        またはバリデーション違反の場合。
         """
         raw_code = financial_dict.get("security_code")
         if not raw_code or not str(raw_code).strip():

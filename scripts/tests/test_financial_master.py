@@ -9,35 +9,17 @@ EPSは再計算可能なため出力しない。
 import sys
 from pathlib import Path
 
-project_root = Path(__file__).resolve().parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
 from parser.xbrl_parser import XBRLParser
 from parser.context_resolver import ContextResolver
 from normalizer.fact_normalizer import FactNormalizer
 from financial.financial_master import FinancialMaster
+from config_loader import get_fact_keys, get_derived_keys
 
-FACT_KEYS = {
-    "total_assets", "equity",
-    "net_sales", "operating_income", "ordinary_income",
-    "net_income_attributable_to_parent",
-    "total_number_of_issued_shares",
-    "cash_and_equivalents", "operating_cash_flow", "depreciation",
-    "dividends_per_share",
-    "short_term_borrowings", "current_portion_of_long_term_borrowings",
-    "commercial_papers", "current_portion_of_bonds",
-    "short_term_lease_obligations", "bonds_payable",
-    "long_term_borrowings", "long_term_lease_obligations",
-    "lease_obligations",
-}
-
-DERIVED_KEYS = {
-    "roe", "roa", "roic", "operating_margin", "net_margin",
-    "equity_ratio", "de_ratio",
-    "sales_growth", "profit_growth", "eps_growth",
-    "free_cash_flow", "cagr",
-    "profit_loss", "earnings_per_share",
-}
+FACT_KEYS = get_fact_keys()
+DERIVED_KEYS = get_derived_keys()
 
 if __name__ == "__main__":
     xbrl_path = project_root / "data/edinet/raw_xbrl/2025/S100W67S/jpcrp030000-asr-001_E05325-000_2025-03-31_01_2025-06-25.xbrl"

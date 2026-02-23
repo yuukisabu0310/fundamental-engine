@@ -1,0 +1,194 @@
+# =============================================================================
+# Canonical Fact Keys 定義
+# =============================================================================
+#
+# financial-dataset に保存する正規化キーとその属性定義。
+# fact_normalizer, financial_master, json_exporter が共通参照する。
+#
+# カテゴリ:
+#   fact   - 財務諸表に記載された不可逆なFact（保存対象）
+#   derived - 再計算可能な指標（保存しない。valuation-engine で算出）
+#
+# resolution: 同一概念に対する複数の正規化キーの優先順位解決ルール
+#   FinancialMaster で使用。上位キーが存在すれば採用。
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Fact Keys: financial-dataset に保存する項目
+# ---------------------------------------------------------------------------
+fact_keys:
+
+  # === 基礎財務項目 ===
+  total_assets:
+    category: "basic"
+    description: "総資産"
+    source: "bs"
+    data_type: "monetary"
+
+  equity:
+    category: "basic"
+    description: "自己資本（統合後）"
+    source: "bs"
+    data_type: "monetary"
+    resolution:
+      - "shareholders_equity"
+      - "equity_attributable_to_owners"
+      - "equity"
+      - "net_assets"
+
+  net_sales:
+    category: "basic"
+    description: "売上高 / 売上収益"
+    source: "pl"
+    data_type: "monetary"
+
+  operating_income:
+    category: "basic"
+    description: "営業利益"
+    source: "pl"
+    data_type: "monetary"
+
+  ordinary_income:
+    category: "basic"
+    description: "経常利益（JGAAP特有。IFRSでは null）"
+    source: "pl"
+    data_type: "monetary"
+
+  net_income_attributable_to_parent:
+    category: "basic"
+    description: "親会社株主に帰属する当期純利益"
+    source: "pl"
+    data_type: "monetary"
+    normalizer_key: "profit_loss"
+
+  total_number_of_issued_shares:
+    category: "basic"
+    description: "発行済株式総数"
+    source: "bs"
+    data_type: "shares"
+
+  # === 分析用追加項目 ===
+  cash_and_equivalents:
+    category: "analytical"
+    description: "現金及び現金同等物"
+    source: "bs"
+    data_type: "monetary"
+    resolution:
+      - "cash_and_equivalents"
+      - "cash_and_deposits"
+
+  operating_cash_flow:
+    category: "analytical"
+    description: "営業活動によるキャッシュフロー"
+    source: "cf"
+    data_type: "monetary"
+
+  depreciation:
+    category: "analytical"
+    description: "減価償却費"
+    source: "cf"
+    data_type: "monetary"
+
+  dividends_per_share:
+    category: "analytical"
+    description: "1株当たり配当金"
+    source: "dividend"
+    data_type: "per_share"
+
+  # === 有利子負債構成項目 ===
+  short_term_borrowings:
+    category: "debt_component"
+    description: "短期借入金"
+    source: "bs"
+    data_type: "monetary"
+
+  current_portion_of_long_term_borrowings:
+    category: "debt_component"
+    description: "1年内返済予定の長期借入金"
+    source: "bs"
+    data_type: "monetary"
+
+  commercial_papers:
+    category: "debt_component"
+    description: "コマーシャルペーパー"
+    source: "bs"
+    data_type: "monetary"
+
+  current_portion_of_bonds:
+    category: "debt_component"
+    description: "1年内償還予定の社債"
+    source: "bs"
+    data_type: "monetary"
+
+  short_term_lease_obligations:
+    category: "debt_component"
+    description: "短期リース債務"
+    source: "bs"
+    data_type: "monetary"
+
+  bonds_payable:
+    category: "debt_component"
+    description: "社債"
+    source: "bs"
+    data_type: "monetary"
+
+  long_term_borrowings:
+    category: "debt_component"
+    description: "長期借入金"
+    source: "bs"
+    data_type: "monetary"
+
+  long_term_lease_obligations:
+    category: "debt_component"
+    description: "長期リース債務"
+    source: "bs"
+    data_type: "monetary"
+
+  lease_obligations:
+    category: "debt_component"
+    description: "リース債務（CL/NCL未分割）"
+    source: "bs"
+    data_type: "monetary"
+
+# ---------------------------------------------------------------------------
+# Derived Keys: 再計算可能なため financial-dataset には保存しない
+# ---------------------------------------------------------------------------
+derived_keys:
+  - "roe"
+  - "roa"
+  - "roic"
+  - "operating_margin"
+  - "net_margin"
+  - "equity_ratio"
+  - "de_ratio"
+  - "sales_growth"
+  - "profit_growth"
+  - "eps_growth"
+  - "per"
+  - "pbr"
+  - "psr"
+  - "peg"
+  - "dividend_yield"
+  - "free_cash_flow"
+  - "cagr"
+  - "profit_loss"
+  - "earnings_per_share"
+  - "earnings_per_share_basic"
+  - "earnings_per_share_diluted"
+  - "interest_bearing_debt"
+
+# ---------------------------------------------------------------------------
+# 会計基準の正規化マッピング
+# ---------------------------------------------------------------------------
+accounting_standard_mapping:
+  "Japan GAAP": "JGAAP"
+  "日本基準": "JGAAP"
+  "JGAAP": "JGAAP"
+  "IFRS": "IFRS"
+  "US GAAP": "US-GAAP"
+  "US-GAAP": "US-GAAP"
+
+valid_accounting_standards:
+  - "JGAAP"
+  - "IFRS"
+  - "US-GAAP"

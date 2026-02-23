@@ -1,0 +1,299 @@
+# =============================================================================
+# EDINET XBRL タクソノミ → 正規化キー マッピング定義
+# =============================================================================
+#
+# データソース:
+#   - 1e_ElementList (JGAAP タクソノミ要素リスト)
+#   - 1g_IFRS_ElementList (国際会計基準タクソノミ要素リスト)
+#   - 1f_AccountList (勘定科目リスト)
+#
+# ルール:
+#   - 配列順序 = 優先順位（first-match-wins）
+#   - tag: XBRLタグ名の部分一致キーワード（namespace prefix除外後のlocal名で検索）
+#   - key: 正規化後の標準キー名（canonical key）
+#   - 同一 key に対して複数の tag を定義可。先にマッチしたものを採用。
+#   - SummaryOfBusinessResults（経営指標等）のタグを最優先配置。
+#     本表（BS/PL/CF）のタグはフォールバック。
+#
+# 会計基準対応:
+#   - JGAAP: jppfs_cor, jpcrp_cor namespace
+#   - IFRS:  jpigp_cor namespace（タグ末尾に "IFRS" を含む）
+#   - タグリストは JGAAP/IFRS 統合。partial match により自動的に対応。
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# PL (損益計算書) - period_type: duration
+# ---------------------------------------------------------------------------
+pl:
+  # --- net_sales (売上高 / 売上収益) ---
+  # JGAAP: 経営指標等
+  - tag: "NetSalesSummaryOfBusinessResults"
+    key: "net_sales"
+  # IFRS: 経営指標等 (売上収益)
+  - tag: "RevenueIFRSSummaryOfBusinessResults"
+    key: "net_sales"
+  # JGAAP: 経営指標等 (営業収益 - 金融・リース・不動産業)
+  - tag: "OperatingRevenue1SummaryOfBusinessResults"
+    key: "net_sales"
+  - tag: "OperatingRevenue2SummaryOfBusinessResults"
+    key: "net_sales"
+  # JGAAP: 経営指標等 (営業総収入 - 小売業)
+  - tag: "GrossOperatingRevenueSummaryOfBusinessResults"
+    key: "net_sales"
+  # JGAAP: 本表フォールバック
+  - tag: "NetSales"
+    key: "net_sales"
+  # IFRS: 本表フォールバック (売上収益)
+  - tag: "RevenueIFRS"
+    key: "net_sales"
+
+  # --- operating_income (営業利益) ---
+  - tag: "OperatingIncome"
+    key: "operating_income"
+  # IFRS: 営業利益
+  - tag: "OperatingProfitLossIFRS"
+    key: "operating_income"
+  - tag: "OperatingProfitLoss"
+    key: "operating_income"
+
+  # --- ordinary_income (経常利益) - JGAAP特有。IFRSには該当概念なし ---
+  - tag: "OrdinaryIncomeSummaryOfBusinessResults"
+    key: "ordinary_income"
+  - tag: "OrdinaryIncomeLossSummaryOfBusinessResults"
+    key: "ordinary_income"
+  - tag: "OrdinaryIncome"
+    key: "ordinary_income"
+
+  # --- profit_loss (親会社株主に帰属する当期純利益) ---
+  # JGAAP: 経営指標等 (連結)
+  - tag: "ProfitLossAttributableToOwnersOfParentSummaryOfBusinessResults"
+    key: "profit_loss"
+  # IFRS: 経営指標等
+  - tag: "ProfitLossAttributableToOwnersOfParentIFRSSummaryOfBusinessResults"
+    key: "profit_loss"
+  # 本表フォールバック (JGAAP/IFRS共通)
+  - tag: "ProfitLossAttributableToOwnersOfParent"
+    key: "profit_loss"
+  # JGAAP: 経営指標等 (非連結企業の当期純利益 - "親会社帰属"概念がない場合のフォールバック)
+  - tag: "NetIncomeLossSummaryOfBusinessResults"
+    key: "profit_loss"
+
+# ---------------------------------------------------------------------------
+# BS (貸借対照表) - period_type: instant
+# ---------------------------------------------------------------------------
+bs:
+  # --- total_assets (総資産) ---
+  # JGAAP: 経営指標等
+  - tag: "TotalAssetsSummaryOfBusinessResults"
+    key: "total_assets"
+  # IFRS: 経営指標等
+  - tag: "TotalAssetsIFRSSummaryOfBusinessResults"
+    key: "total_assets"
+  # 本表フォールバック
+  - tag: "TotalAssets"
+    key: "total_assets"
+  # IFRS: 本表 (jpigp_cor:AssetsIFRS = 資産合計)
+  - tag: "AssetsIFRS"
+    key: "total_assets"
+
+  # --- equity 関連 (FinancialMaster で優先順位解決) ---
+  # JGAAP: 株主資本
+  - tag: "ShareholdersEquity"
+    key: "shareholders_equity"
+  # IFRS: 経営指標等 (親会社の所有者に帰属する持分)
+  - tag: "EquityAttributableToOwnersOfParentIFRSSummaryOfBusinessResults"
+    key: "equity_attributable_to_owners"
+  # IFRS: 本表
+  - tag: "EquityAttributableToOwnersOfParentIFRS"
+    key: "equity_attributable_to_owners"
+  - tag: "EquityAttributableToOwnersOfParent"
+    key: "equity_attributable_to_owners"
+  # JGAAP: 経営指標等 (純資産額)
+  - tag: "NetAssetsSummaryOfBusinessResults"
+    key: "net_assets"
+  - tag: "NetAssets"
+    key: "net_assets"
+
+  # --- cash_and_equivalents (現金及び現金同等物) ---
+  # JGAAP: 経営指標等
+  - tag: "CashAndCashEquivalentsSummaryOfBusinessResults"
+    key: "cash_and_equivalents"
+  # IFRS: 経営指標等
+  - tag: "CashAndCashEquivalentsIFRSSummaryOfBusinessResults"
+    key: "cash_and_equivalents"
+  # 本表フォールバック
+  - tag: "CashAndCashEquivalents"
+    key: "cash_and_equivalents"
+  # IFRS: 本表 (jpigp_cor:CashAndCashEquivalentsIFRS)
+  - tag: "CashAndCashEquivalentsIFRS"
+    key: "cash_and_equivalents"
+  # JGAAP: BS上の現金及び預金（C/F作成会社以外のフォールバック）
+  - tag: "CashAndDeposits"
+    key: "cash_and_deposits"
+
+  # === 有利子負債構成項目 ===
+
+  # --- short_term_borrowings (短期借入金) ---
+  # JGAAP: jppfs_cor (ShortTermBorrowings / ShortTermLoansPayable は同一概念の別タグ名)
+  - tag: "ShortTermBorrowings"
+    key: "short_term_borrowings"
+  - tag: "ShortTermLoansPayable"
+    key: "short_term_borrowings"
+  # IFRS: 流動負債 - 借入金 (jpigp_cor:BorrowingsCLIFRS)
+  - tag: "BorrowingsCLIFRS"
+    key: "short_term_borrowings"
+  # IFRS: 代替表記
+  - tag: "CurrentBorrowings"
+    key: "short_term_borrowings"
+
+  # --- current_portion_of_long_term_borrowings (1年内返済予定の長期借入金) ---
+  # JGAAP
+  - tag: "CurrentPortionOfLongTermLoansPayable"
+    key: "current_portion_of_long_term_borrowings"
+  - tag: "CurrentPortionOfLongTermBorrowings"
+    key: "current_portion_of_long_term_borrowings"
+  # IFRS (jpigp_cor:CurrentPortionOfLongTermBorrowingsCLIFRS)
+  - tag: "CurrentPortionOfLongTermBorrowingsCLIFRS"
+    key: "current_portion_of_long_term_borrowings"
+
+  # --- commercial_papers (コマーシャルペーパー) ---
+  - tag: "CommercialPapers"
+    key: "commercial_papers"
+
+  # --- current_portion_of_bonds (1年内償還予定の社債) ---
+  # JGAAP
+  - tag: "CurrentPortionOfBonds"
+    key: "current_portion_of_bonds"
+  # IFRS: 流動負債 - 社債 (jpigp_cor:BondsPayableCLIFRS)
+  - tag: "BondsPayableCLIFRS"
+    key: "current_portion_of_bonds"
+
+  # --- bonds_payable (社債) ---
+  # JGAAP
+  - tag: "BondsPayable"
+    key: "bonds_payable"
+  # IFRS: 非流動負債 - 社債 (jpigp_cor:BondsPayableNCLIFRS)
+  - tag: "BondsPayableNCLIFRS"
+    key: "bonds_payable"
+
+  # --- long_term_borrowings (長期借入金) ---
+  # JGAAP
+  - tag: "LongTermLoansPayable"
+    key: "long_term_borrowings"
+  - tag: "LongTermBorrowings"
+    key: "long_term_borrowings"
+  # IFRS: 非流動負債 - 借入金 (jpigp_cor:BorrowingsNCLIFRS)
+  - tag: "BorrowingsNCLIFRS"
+    key: "long_term_borrowings"
+  - tag: "NoncurrentBorrowings"
+    key: "long_term_borrowings"
+
+  # --- short_term_lease_obligations (短期リース債務) ---
+  # JGAAP: CL区分
+  - tag: "LeaseObligationsCL"
+    key: "short_term_lease_obligations"
+  - tag: "ShortTermLeaseObligations"
+    key: "short_term_lease_obligations"
+  # IFRS: 流動リース負債 (jpigp_cor:LeaseLiabilitiesCLIFRS)
+  - tag: "LeaseLiabilitiesCLIFRS"
+    key: "short_term_lease_obligations"
+  - tag: "CurrentLeaseLiabilities"
+    key: "short_term_lease_obligations"
+
+  # --- long_term_lease_obligations (長期リース債務) ---
+  # JGAAP: NCL区分
+  - tag: "LeaseObligationsNCL"
+    key: "long_term_lease_obligations"
+  - tag: "LongTermLeaseObligations"
+    key: "long_term_lease_obligations"
+  # IFRS: 非流動リース負債 (jpigp_cor:LeaseLiabilitiesNCLIFRS)
+  - tag: "LeaseLiabilitiesNCLIFRS"
+    key: "long_term_lease_obligations"
+  - tag: "NoncurrentLeaseLiabilities"
+    key: "long_term_lease_obligations"
+
+  # --- lease_obligations (リース債務 - CL/NCL未分割の場合) ---
+  - tag: "LeaseObligations"
+    key: "lease_obligations"
+  # IFRS: BS上のリース負債（CL/NCL未分割）
+  - tag: "LeaseLiabilitiesLiabilitiesIFRS"
+    key: "lease_obligations"
+
+# ---------------------------------------------------------------------------
+# CF (キャッシュフロー計算書) - period_type: duration
+# ---------------------------------------------------------------------------
+cf:
+  # --- operating_cash_flow (営業活動によるキャッシュフロー) ---
+  # JGAAP: 経営指標等
+  - tag: "NetCashProvidedByUsedInOperatingActivitiesSummaryOfBusinessResults"
+    key: "operating_cash_flow"
+  # IFRS: 経営指標等
+  - tag: "CashFlowsFromUsedInOperatingActivitiesIFRSSummaryOfBusinessResults"
+    key: "operating_cash_flow"
+  # JGAAP: 本表
+  - tag: "NetCashProvidedByUsedInOperatingActivities"
+    key: "operating_cash_flow"
+  # IFRS: 本表 (jpigp_cor)
+  - tag: "NetCashProvidedByUsedInOperatingActivitiesIFRS"
+    key: "operating_cash_flow"
+  - tag: "CashFlowsFromUsedInOperatingActivities"
+    key: "operating_cash_flow"
+
+  # --- depreciation (減価償却費) ---
+  # JGAAP: CF表の減価償却費
+  - tag: "DepreciationAndAmortizationOpeCF"
+    key: "depreciation"
+  # IFRS: CF表の減価償却費及び償却費 (jpigp_cor)
+  - tag: "DepreciationAndAmortizationOpeCFIFRS"
+    key: "depreciation"
+  # IFRS: CF表の減価償却費 (jpigp_cor)
+  - tag: "DepreciationExpenseOpeCFIFRS"
+    key: "depreciation"
+  # IFRS: 営業費用の減価償却費
+  - tag: "DepreciationAndAmortisationExpense"
+    key: "depreciation"
+  # JGAAP: SGA区分の減価償却費（CF表がない場合のフォールバック）
+  - tag: "DepreciationSGA"
+    key: "depreciation"
+
+# ---------------------------------------------------------------------------
+# Dividend (配当) - period_type: duration, allow_non_consolidated
+# ---------------------------------------------------------------------------
+dividend:
+  - tag: "DividendPaidPerShareSummaryOfBusinessResults"
+    key: "dividends_per_share"
+  # IFRS: 経営指標等の1株当たり配当額
+  - tag: "DividendPaidPerShareIFRSSummaryOfBusinessResults"
+    key: "dividends_per_share"
+  # 本表フォールバック（JGAAP / IFRS 共通）
+  - tag: "DividendPaidPerShare"
+    key: "dividends_per_share"
+
+# ---------------------------------------------------------------------------
+# Shares (発行済株式総数) - period_type: instant, entity-level attribute
+# 連結/非連結に関わらず企業レベルの属性のため、NonConsolidated fallback を許可する。
+# ---------------------------------------------------------------------------
+shares:
+  - tag: "TotalNumberOfIssuedSharesSummaryOfBusinessResults"
+    key: "total_number_of_issued_shares"
+  - tag: "IssuedSharesTotalNumberOfSharesEtc"
+    key: "total_number_of_issued_shares"
+  - tag: "NumberOfIssuedSharesAsOfFilingDateTotalNumberOfSharesEtc"
+    key: "total_number_of_issued_shares"
+
+# ---------------------------------------------------------------------------
+# DEI (書類・企業情報) - non-numeric
+# ---------------------------------------------------------------------------
+dei:
+  - tag: "SecurityCodeDEI"
+    key: "security_code"
+  - tag: "CompanyName"
+    key: "company_name"
+  - tag: "AccountingStandardsDEI"
+    key: "accounting_standard"
+  - tag: "WhetherConsolidatedFinancialStatementsArePrepared"
+    key: "is_consolidated_dei"
+  - tag: "CurrentPeriodEndDateDEI"
+    key: "current_period_end_date"
+  - tag: "CurrentFiscalYearEndDateDEI"
+    key: "current_fiscal_year_end_date"

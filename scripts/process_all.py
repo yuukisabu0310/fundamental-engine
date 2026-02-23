@@ -5,23 +5,23 @@ XBRLファイルをパースしてJSON出力まで実行する。
 使用例:
     python scripts/process_all.py
 """
+import logging
 import os
 import sys
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 sys.path.insert(0, str(project_root / "src"))
 
-# .env ファイルを読み込む（DATASET_PATH用）
 env_path = project_root / ".env"
 if env_path.exists():
     load_dotenv(env_path)
 
-# DATASET_PATH が設定されていない場合はエラー
 if "DATASET_PATH" not in os.environ:
-    print("ERROR: DATASET_PATH 環境変数が設定されていません。")
+    sys.stderr.write("ERROR: DATASET_PATH 環境変数が設定されていません。\n")
     sys.exit(1)
 
 from parser.xbrl_parser import XBRLParser
@@ -31,46 +31,37 @@ from financial.financial_master import FinancialMaster
 from output.json_exporter import JSONExporter
 from constants import SKIP_FILENAME_PATTERNS
 
-if __name__ == "__main__":
-    # データディレクトリからXBRLファイルを検索
-    xbrl_base_dir = project_root / "data" / "edinet" / "raw_xbrl"
-    
-    if not xbrl_base_dir.exists():
-        print(f"WARNING: XBRLディレクトリが存在しません: {xbrl_base_dir}")
-        print("XBRLファイルがダウンロードされていないため、処理をスキップします。")
-        sys.exit(0)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
 
-    # すべてのXBRLファイルを再帰的に検索（サブディレクトリを含む）
-    # rglobは再帰的に検索するが、パターンを**/*.xbrlのように明示的に指定
+
+def main() -> None:
+    xbrl_base_dir = project_root / "data" / "edinet" / "raw_xbrl"
+
+    if not xbrl_base_dir.exists():
+        logger.warning("XBRLディレクトリが存在しません: %s", xbrl_base_dir)
+        return
+
     xbrl_files = list(xbrl_base_dir.rglob("*.xbrl"))
-    
-    # デバッグ用: 検索されたファイル数を表示
-    print(f"Searching for XBRL files in: {xbrl_base_dir}")
-    print(f"Found {len(xbrl_files)} XBRL files")
-    
+    logger.info("XBRL検索ディレクトリ: %s", xbrl_base_dir)
+    logger.info("XBRL ファイル数: %d", len(xbrl_files))
+
     if not xbrl_files:
-        print(f"WARNING: XBRLファイルが見つかりません: {xbrl_base_dir}")
-        print("処理するXBRLファイルがないため、処理をスキップします。")
-        # デバッグ用: ディレクトリ構造を確認
-        if xbrl_base_dir.exists():
-            print(f"Directory exists. Contents:")
-            try:
-                for item in xbrl_base_dir.iterdir():
-                    print(f"  - {item.name} ({'dir' if item.is_dir() else 'file'})")
-            except Exception as e:
-                print(f"  Error listing directory: {e}")
-        sys.exit(0)
-    
-    # 各XBRLファイルを処理
+        logger.warning("XBRLファイルが見つかりません: %s", xbrl_base_dir)
+        return
+
     for xbrl_path in xbrl_files:
         try:
-            # 処理対象外の書類（大量保有報告書等）を早期スキップ
             name_lower = xbrl_path.name.lower()
             if any(pattern in name_lower for pattern in SKIP_FILENAME_PATTERNS):
-                print(f"\nSKIP: {xbrl_path.name} - 処理対象外の書類（ファイル名にスキップパターンが含まれます）")
+                logger.debug("SKIP: %s (処理対象外)", xbrl_path.name)
                 continue
 
-            print(f"\nProcessing: {xbrl_path.name}")
+            logger.info("Processing: %s", xbrl_path.name)
 
             parser = XBRLParser(xbrl_path)
             parsed_data = parser.parse()
@@ -79,13 +70,12 @@ if __name__ == "__main__":
             normalizer = FactNormalizer(parsed_data, context_map)
             normalized_data = normalizer.normalize()
 
-            # 必須項目検証：有価証券報告書・四半期報告書以外はスキップ
             security_code = normalized_data.get("security_code")
             fiscal_year_end = normalized_data.get("fiscal_year_end")
             if security_code is None or fiscal_year_end is None:
-                print(
-                    f"  SKIP: 有価証券報告書・四半期報告書ではないか、必須項目が欠損 "
-                    f"(security_code={security_code}, fiscal_year_end={fiscal_year_end})"
+                logger.debug(
+                    "SKIP: 必須項目欠損 (security_code=%s, fiscal_year_end=%s)",
+                    security_code, fiscal_year_end,
                 )
                 continue
 
@@ -94,20 +84,19 @@ if __name__ == "__main__":
 
             exporter = JSONExporter()
             json_path = exporter.export(financial_data)
-            print(f"  -> Saved: {json_path}")
-            
+            logger.info("Saved: %s", json_path)
+
         except ValueError as e:
-            # バリデーションエラー（security_code/fiscal_year_end/data_version）はスキップして継続
             error_msg = str(e).lower()
             if any(kw in error_msg for kw in ("security_code", "fiscal_year_end", "data_version", "unknown")):
-                print(f"  SKIP: {xbrl_path.name} - {e}")
+                logger.debug("SKIP: %s - %s", xbrl_path.name, e)
                 continue
-            print(f"ERROR: Failed to process {xbrl_path.name}: {e}")
-            continue
+            logger.error("Failed: %s - %s", xbrl_path.name, e)
         except Exception as e:
-            print(f"ERROR: Failed to process {xbrl_path.name}: {e}")
-            import traceback
-            traceback.print_exc()
-            continue
+            logger.error("Failed: %s - %s", xbrl_path.name, e, exc_info=True)
 
-    print("\nProcessing completed")
+    logger.info("Processing completed")
+
+
+if __name__ == "__main__":
+    main()

@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 # 除外する名前空間URI
 LINK_NS = "http://www.xbrl.org/2003/linkbase"
 XLINK_NS = "http://www.w3.org/1999/xlink"
+XSI_NS = "http://www.w3.org/2001/XMLSchema-instance"
+_XSI_NIL_ATTR = f"{{{XSI_NS}}}nil"
 # 除外する要素のローカル名
 EXCLUDED_LOCAL_NAMES = frozenset(("context", "unit", "schemaRef"))
 # taxonomy_version 抽出用の日付パターン（YYYY-MM-DD）
@@ -67,7 +69,7 @@ class XBRLParser:
         Returns:
             doc_id: ファイルパスから取得したドキュメントID（例: S100VUAT）
             taxonomy_version: schemaRef から抽出した日付（YYYY-MM-DD）
-            facts: 各factの tag, contextRef, unitRef, decimals, value のリスト
+            facts: 各factの tag, contextRef, unitRef, decimals, value, is_nil のリスト
         """
         doc_id = self._path.parent.name
         taxonomy_version = ""
@@ -121,7 +123,8 @@ class XBRLParser:
             tag = _qname_for_element(elem, ns_to_prefix)
             unit_ref = elem.get("unitRef") or ""
             decimals = elem.get("decimals", "")
-            value = _get_text(elem)
+            is_nil = elem.get(_XSI_NIL_ATTR, "").lower() == "true"
+            value = "" if is_nil else _get_text(elem)
 
             facts.append({
                 "tag": tag,
@@ -129,6 +132,7 @@ class XBRLParser:
                 "unitRef": unit_ref,
                 "decimals": decimals,
                 "value": value,
+                "is_nil": is_nil,
             })
 
         return {
