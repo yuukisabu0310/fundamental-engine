@@ -96,6 +96,16 @@ NULL分類は**日付認識**で判定。当期コンテキスト (`current_year
 | 初回（3分類） | 7.2% | taxonomy_mapping 初版 |
 | ShortTermLoansPayable追加 | 5.6% | BS負債タグ追加、xsi:nil 4分類化 |
 | 日付認識 + BSアンカー | **2.8%** | classify スクリプト日付認識化、BS本表アンカー方式導入 |
+| タグ完全一致化 | 要計測 | 部分一致→完全一致に変更、借入金・リース同値問題解消 |
+
+### タグマッチング仕様
+
+`FactNormalizer._tag_matches` は **完全一致** のみ許可。部分一致（`keyword in tag`）は誤爆リスクのため禁止。
+
+```python
+def _tag_matches(tag: str, keyword: str) -> bool:
+    return _tag_local_name(tag) == keyword  # 完全一致
+```
 
 検証コマンド: `python scripts/analysis/classify_null_reasons.py`
 

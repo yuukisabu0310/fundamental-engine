@@ -68,8 +68,11 @@ def _tag_local_name(tag: str) -> str:
 
 
 def _tag_matches(tag: str, keyword: str) -> bool:
-    """タグのローカル名が keyword を部分一致で含むか判定する。"""
-    return keyword in _tag_local_name(tag)
+    """タグのローカル名が keyword と完全一致するか判定する。
+
+    部分一致は誤爆リスクが高いため禁止。正確性を優先する。
+    """
+    return _tag_local_name(tag) == keyword
 
 
 def _is_consolidated_context(context_ref: str) -> bool:
